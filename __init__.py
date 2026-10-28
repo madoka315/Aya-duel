@@ -7,8 +7,7 @@ from datetime import datetime, timedelta
 from io import BytesIO
 from PIL import Image
 from hoshino import Service, priv
-from hoshino.modules.priconne import _pcr_data_duel
-from hoshino.modules.priconne import chara_duel as chara
+from . import chara
 from hoshino.typing import CQEvent
 from hoshino.util import DailyNumberLimiter
 import copy
@@ -301,37 +300,10 @@ async def duel_help(bot, ev: CQEvent):
 #加载DLC部分代码
 #这里记录每个dlc的列表范围
 
-blhxlist = range(6000,6506)
-yozilist = range(1523,1544)
-genshinlist = range(7001,7033)
-collelist = range(4001,4639)
-koilist = range(7100,7104)
-cloverlist = range(7300,7307)
-fgolist = range(8001,8301)
-amairolist = range(1300,1304)
-nekoparalist = range(9110,9116)
-pjsklist = range(9400,9460)
-bangdreamlist = range(1601,1636)
-mrfzlist = range(5001,5180)
-
-#这里记录dlc名字和对应列表
+#DLC列表自动从 chara/data/dlc/ 目录扫描生成：丢一个 json 即为新 DLC，零代码
 #已退休DLC（million/sakukoi/majsoul/noraneko/umamusume/punishing/vtuber/mangekyou/tsubakioka）
-#相关代码、数据与持有记录已于2026-10-28彻底移除，勿再添加。
-dlcdict = {
-        'blhx':blhxlist,
-        'yozi':yozilist,
-        'genshin':genshinlist,
-        'kancolle':collelist,
-        'koikake':koilist,
-        'cloverdays':cloverlist,
-        'fgo':fgolist,
-        'amairochoco':amairolist,
-        'nekopara':nekoparalist,
-        'pjsk':pjsklist,
-        'bangdream':bangdreamlist,
-        'mrfz':mrfzlist
-        }
-
+#已于2026-10-28彻底移除，勿再添加。
+dlcdict = {name: ids for name, ids in chara.DLC_IDS.items()}
 dlcdict2 = {
         }
 
@@ -1494,7 +1466,7 @@ duel_jiaoyier = NvYouJiaoYi()
 
 # 生成没被约过的角色列表
 def get_newgirl_list(gid):
-    chara_id_list = list(_pcr_data_duel.CHARA_NAME.keys())
+    chara_id_list = list(chara.CHARA_NAME.keys())
     duel = DuelCounter()
     old_list = duel._get_card_list(gid)
     dlc_blacklist = get_dlc_blacklist(gid)
@@ -3021,7 +2993,7 @@ async def get_girlname(bot, ev: CQEvent):
     cid = cidlist[num_int-1]
     if cid == 9999:
         cid = 1059
-    namelist = _pcr_data_duel.CHARA_NAME[cid]
+    namelist = chara.CHARA_NAME[cid]
     namemsg = ''
     for name in namelist:
         namemsg += f'{name},'

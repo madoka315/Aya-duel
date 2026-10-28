@@ -8,8 +8,7 @@ from datetime import datetime, timedelta
 from io import BytesIO
 from PIL import Image
 from hoshino import Service, priv
-from hoshino.modules.priconne import _pcr_data_duel
-from hoshino.modules.priconne import chara_duel as chara
+from . import chara
 from hoshino.typing import CQEvent
 from hoshino.util import DailyNumberLimiter
 import copy
