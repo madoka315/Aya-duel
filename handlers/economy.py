@@ -210,6 +210,9 @@ async def prestige_ranking(bot, ev: CQEvent):
                 if score_dict[user_card_dict[uid]] == None:
                    score_dict[user_card_dict[uid]] = 0
         group_ranking = sorted(score_dict.items(), key = lambda x:x[1], reverse = True)
+        if not group_ranking or group_ranking[0][1] == 0:
+            await bot.send(ev, '本群还没有声望记录哦（国王后可发送 开启声望系统）。', at_sender=True)
+            return
         msg = '此群贵族对决声望排行为:\n'
         for i in range(min(len(group_ranking), 10)):
             if group_ranking[i][1] != 0:
@@ -218,7 +221,7 @@ async def prestige_ranking(bot, ev: CQEvent):
     except Exception as e:
         await bot.send(ev, '错误:\n' + str(e))      
 
-@sv.on_fullmatch(('胜场排行榜', '贵族胜场排行'))
+@sv.on_fullmatch(('胜场排行榜', '胜场排行', '贵族胜场排行'))
 async def SC_ranking(bot, ev: CQEvent):
     try:
         user_card_dict = await get_user_card_dict(bot, ev.group_id)
@@ -230,6 +233,9 @@ async def SC_ranking(bot, ev: CQEvent):
             if uid != ev.self_id:
                 score_dict[user_card_dict[uid]] = duel._get_WLCWIN(gid, uid)
         group_ranking = sorted(score_dict.items(), key = lambda x:x[1], reverse = True)
+        if not group_ranking or group_ranking[0][1] == 0:
+            await bot.send(ev, '本群还没有胜场记录哦。', at_sender=True)
+            return
         msg = '此群贵族对决排行为:\n'
         for i in range(min(len(group_ranking), 10)):
             if group_ranking[i][1] != 0:
@@ -251,6 +257,9 @@ async def girl_ranking(bot, ev: CQEvent):
                 cidlist = duel._get_cards(gid, uid)
                 score_dict[user_card_dict[uid]] = cidnum = len(cidlist)
         group_ranking = sorted(score_dict.items(), key = lambda x:x[1], reverse = True)
+        if not group_ranking or group_ranking[0][1] == 0:
+            await bot.send(ev, '本群还没有人拥有女友哦。', at_sender=True)
+            return
         msg = '此群贵族对决女友数排行为:\n'
         for i in range(min(len(group_ranking), 10)):
             if group_ranking[i][1] != 0:
