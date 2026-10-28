@@ -139,7 +139,7 @@ def add_exp(gid,uid,cid,exp):
     CE = CECounter()
     now_level = CE._get_card_level(gid, uid, cid)
     level_flag = 0
-    need_exp = (now_level+1)*100
+    need_exp = (now_level+1)*50
     exp_info = CE._get_card_exp(gid, uid, cid)
     now_exp = exp_info + exp
     if now_level>=CARD_LEVEL_MAX:
@@ -149,7 +149,7 @@ def add_exp(gid,uid,cid,exp):
     while now_exp>=need_exp:
         now_level = now_level+1
         now_exp = now_exp-need_exp
-        need_exp = (now_level+1)*100 
+        need_exp = (now_level+1)*50 
         if now_level>=CARD_LEVEL_MAX:
             level_flag = 1
             last_exp = now_exp

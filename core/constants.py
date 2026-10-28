@@ -22,9 +22,9 @@ RESET_HOUR = 0 # 每日使用次数的重置时间，0代表凌晨0点，1代表
 SHANGXIAN_NUM = 1000 #增加女友上限所需金币
 WAREHOUSE_NUM = 20 #仓库增加上限次数
 CARD_LEVEL_MAX = 100 #女友等级上限
-ZERO_GET_AMOUNT = 50 # 没钱补给量
+ZERO_GET_AMOUNT = 100 # 没钱补给量
 WIN_NUM = 1#下注获胜赢得的倍率
-WIN_EXP = 100 #决斗胜利获得经验
+WIN_EXP = 300 #决斗胜利获得经验
 BREAK_UP_SWITCH = True#分手系统开关
 Remake_LIMIT = 1
 Zhuan_Low_LIMIT = 100
@@ -117,7 +117,7 @@ PATROL_GOLD_BASE = 30#基础金币
 PATROL_GOLD_PER_LEVEL = 10#每爵位额外金币
 PATROL_GOLD_MAX = 150#金币上限
 PATROL_FAVOR = 5#出战女友好感
-PATROL_EXP = 150#出战女友经验
+PATROL_EXP = 600#出战女友经验
 PATROL_FAIL_RATE = 0.5#失败时按比例给奖励（不惩罚）
 
 #周本（原会战）：每人每天1次出刀，自动取战力最高的5名女友，全群共享血量
@@ -130,7 +130,7 @@ WEEKLY_DMG_MAX = 1.2#伤害浮动上限
 WEEKLY_GOLD_DIV = 100#伤害转金币除数
 WEEKLY_GOLD_MAX = 120#单次出刀金币上限
 WEEKLY_FAVOR = 5#出战女友好感
-WEEKLY_EXP = 200#出战女友经验
+WEEKLY_EXP = 600#出战女友经验
 WEEKLY_KILL_GOLD = 300#击杀奖励金币
 WEEKLY_KILL_FAVOR = 10#击杀奖励好感
 
