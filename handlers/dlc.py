@@ -82,14 +82,9 @@ async def help_dlc(bot, ev: CQEvent):
     msg = '''
 ╔                                 ╗
          DLC帮助
-      
-  1.加载\卸载dlc+dlc名
-  2.dlc列表(查看介绍)
-  
-  卸载的dlc不会被抽到
-  但是角色仍留在仓库
-  可以被他人抢走
-  
+1. 加载dlc / 卸载dlc +dlc名
+2. dlc列表  (查看介绍)
+卸载后不再抽到，但角色留在仓库可被抢
 ╚                                 ╝    
 '''
     await bot.finish(ev, msg)
