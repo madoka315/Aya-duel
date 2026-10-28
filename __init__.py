@@ -2866,7 +2866,6 @@ async def on_input_duel_score2(bot, ev: CQEvent):
             match = ev['match']
             select_id = int(match.group(1))
             current_score = score_counter._get_score(gid, uid)
-            input_score = current_score
             score_counter = ScoreCounter2()
            # 若下注该群下注字典不存在则创建
             if duel_judger.get_support(gid) == 0:
