@@ -14,8 +14,8 @@ from ..core.state import daily_patrol_limiter
 
 
 PATROL_STAGE_NAME = {
-    1: '男爵领', 2: '子爵领', 3: '伯爵领', 4: '侯爵领', 5: '公爵领', 6: '大公领',
-    7: '亲王领', 8: '王储林地', 9: '王都近郊', 10: '皇家庭园',
+    1: '男爵领地', 2: '子爵领地', 3: '伯爵领地', 4: '侯爵领地', 5: '公爵领地', 6: '大公领地',
+    7: '亲王领地', 8: '王储林地', 9: '王都近郊', 10: '皇家庭园',
     11: '圣王圣域', 12: '神帝边境',
 }
 
@@ -63,7 +63,7 @@ async def patrol(bot, ev: CQEvent):
     if gold > 0:
         score_counter._add_score(gid, uid, gold)
 
-    head = f"您的代表{c.name}（战力{card_ce}）前往{PATROL_STAGE_NAME.get(level, '边境')}巡逻\n"
+    head = f"您的代表{c.name}（战力{card_ce}）前往{PATROL_STAGE_NAME.get(level, '领地')}巡逻\n"
     if is_win:
         result = f"巡逻顺利，击退了沿路的魔物。\n"
     else:

@@ -190,8 +190,8 @@ async def race_signup(bot, ev: CQEvent):
         room['phase'] = 'closing'
     msg = (f"{no}号 {c.name}（战力{card_ce}）报名成功！\n"
            f"当前参赛：\n{roster}\n"
-           f"下注：押马1号100金币（最低{RACE_BET_MIN}金币，金额不限，每人1注）\n"
-           f"满{RACE_MIN_HORSE}人开跑，{RACE_SIGNUP_TIME}秒后截止；押中第一名按开跑人数返还（{RACE_PAYOUT_EV}×人数）{c.icon.cqcode}")
+           f"下注：押马1号100金币（最低{RACE_BET_MIN}）\n"
+           f"满{RACE_MIN_HORSE}人开跑，{RACE_SIGNUP_TIME}秒后截止")
     await bot.send(ev, msg, at_sender=True)
 
 
