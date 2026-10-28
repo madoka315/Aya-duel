@@ -751,7 +751,6 @@ class DuelCounter:
         self._create_queentable()
         self._create_weapon()
         self._create_WLC()
-        self._create_bantable()
         self._create_DayDuel()
         self._create_favortable()
         self._create_gifttable()
@@ -1107,35 +1106,6 @@ class DuelCounter:
                 "INSERT OR REPLACE INTO WEAPON (GID, WEAPON) VALUES (?, ?)",
                 (gid, weapon),
             )
-#封号部分
-    def _create_bantable(self):
-        try:
-            self._connect().execute('''CREATE TABLE IF NOT EXISTS BANID
-                          (GID             INT    NOT NULL,
-                           UID             INT    NOT NULL,
-                           BANNUM           INT    NOT NULL,
-                           PRIMARY KEY(GID, UID));''')
-        except:
-            raise Exception('创建BAN表发生错误')
-    
-    def _get_BAN(self,gid,uid):
-        with self._connect() as conn:
-            r = conn.execute("SELECT BANNUM FROM BANID WHERE GID=? AND UID=?", (gid,uid)).fetchone()
-            return 0 if r is None else r[0]
-            
-    def _reduce_BAN(self, gid, uid):
-        with self._connect() as conn:
-            conn.execute(
-                "INSERT OR REPLACE INTO BANID (GID, UID, BANNUM) VALUES (?, ?, ?)",
-                (gid, uid, 0),
-            )
-
-    def _set_BAN(self, gid, uid):
-        with self._connect() as conn:
-            conn.execute(
-                "INSERT OR REPLACE INTO BANID (GID, UID, BANNUM) VALUES (?, ?, ?)",
-                (gid, uid, 1),
-            )
 #胜负场部分
     def _create_WLC(self):
         try:
@@ -1178,18 +1148,6 @@ class DuelCounter:
             conn = self._connect()
             conn.execute("INSERT OR REPLACE INTO WLC (GID,UID,WIN,LOST,ADMIT) \
                                 VALUES (?,?,?,?,?)", (gid, uid, WIN+1, LOSE, ADMIT))
-            conn.commit()
-        except:
-            raise Exception('更新表发生错误')
-            
-    def _chat_Win(self, gid, uid):
-        try:
-            WIN = self._get_WLCWIN(gid, uid)
-            LOSE = self._get_WLCLOSE(gid, uid)
-            ADMIT = self._get_ADMIT(gid, uid)
-            conn = self._connect()
-            conn.execute("INSERT OR REPLACE INTO WLC (GID,UID,WIN,LOST,ADMIT) \
-                                VALUES (?,?,?,?,?)", (gid, uid, 999, LOSE, ADMIT))
             conn.commit()
         except:
             raise Exception('更新表发生错误')
@@ -1532,15 +1490,6 @@ class NvYouJiaoYi:
         
         
 duel_jiaoyier = NvYouJiaoYi()
-
-
-# 随机生成一个pcr角色id，应该已经被替代了。
-def get_pcr_id():
-    chara_id_list = list(_pcr_data_duel.CHARA_NAME.keys())
-    while True:
-        random.shuffle(chara_id_list)
-        if chara_id_list[0] not in BLACKLIST_ID: break
-    return chara_id_list[0]
 
 
 # 生成没被约过的角色列表
@@ -3925,7 +3874,7 @@ async def weapon(bot, ev: CQEvent):
     3.格洛克   20发
     4.战术型沙漠之鹰 12发
     5.巴雷特 10发
-也可发送自定义武器装弹X发来定制自己的武器'''
+也可发送自定义武器装弹X发来定制自己的武器(不超过10发)'''
     await bot.send(ev, msg, at_sender=True)
     
 @sv.on_rex(r'^切换武器(俄罗斯左轮|贝雷塔687|格洛克|战术型沙漠之鹰|巴雷特)$')
@@ -3963,8 +3912,8 @@ async def weaponchange2(bot, ev: CQEvent):
     match = (ev['match'])
     n = int(match.group(1))
     duel = DuelCounter()
-    if n > 50:
-        msg = '禁止浪费子弹'
+    if n > 10:
+        msg = '禁止浪费子弹（上限10发）'
         await bot.send(ev ,msg)
         return
     if n % 2 != 0:

@@ -759,17 +759,16 @@ async def moni_huizhan(bot, ev: CQEvent):
     gotype = str(match.group(2))
     gotype = re.sub(r'[?？，,_ ]', '', gotype)
     if gotype == "世界boss":
-        sendgid = 999
-        shijieflag = 1
+        await bot.finish(ev, '世界boss已下线，请使用boss战。', at_sender=True)
     elif gotype == "boss战":
         sendgid = gid
         shijieflag = 0
     else:
-        await bot.finish(ev, '请选择正确的boss战类型（世界boss/boss战）', at_sender=True)
+        await bot.finish(ev, '请选择正确的boss战类型（boss战）', at_sender=True)
     defen = str(match.group(1))
     defen = re.sub(r'[?？，,_]', '', defen)
     if not defen:
-        await bot.finish(ev, '请发送"编队+女友名/队伍名+模拟+(boss战/世界boss)"，无需+号', at_sender=True)
+        await bot.finish(ev, '请发送"编队+女友名/队伍名+模拟boss战"，无需+号', at_sender=True)
     #查询是否是队伍
     teamlist = CE._get_teamlist(gid, uid, defen)
     if teamlist!=0:
@@ -889,123 +888,6 @@ async def moni_huizhan(bot, ev: CQEvent):
         await bot.finish(ev, '无法获取boss信息', at_sender=True)
         return
 
-@sv.on_rex(f'^(.*)补时刀模拟$')
-async def bushi_moni(bot, ev: CQEvent):
-    gid = ev.group_id
-    uid = ev.user_id
-    match = ev['match']
-    gotype = str(match.group(1))
-    gotype = re.sub(r'[?？，,_ ]', '', gotype)
-    if gotype == "世界boss":
-        sendgid = 999
-        shijieflag = 1
-    elif gotype == "boss战":
-        sendgid = gid
-        shijieflag = 0
-    else:
-        await bot.finish(ev, '请选择正确的boss战类型（世界boss/boss战）', at_sender=True)
-    duel = DuelCounter()
-    CE = CECounter()
-    cidlist = duel._get_cards(gid, uid)
-    nowyear = datetime.now().year
-    nowmonth = datetime.now().month
-    nowday = datetime.now().day
-    fighttime = str(nowyear) + str(nowmonth) + str(nowday)
-    bushilist = CE._get_cardbushi(gid,uid,fighttime,shijieflag)
-    if bushilist==0:
-        await bot.finish(ev, '您没有处于补时刀状态，请正常模拟出刀哦', at_sender=True)
-    #print(fighttime)
-    z_ce=0
-    bianzu=''
-    #获取本群boss状态和血量
-    bossinfo = get_boss_info(sendgid)
-    if len(bossinfo)>0:
-        #获取编队战力与信息
-        card_jk = 0
-        for i in bushilist:
-            cid = i[0]
-            card_jk = i[1]/100
-            c = chara.fromid(cid)
-            card_ce=get_card_ce(gid,uid,cid)
-            z_ce=z_ce+card_ce
-            bianzu=bianzu+f"{c.name} "
-        #
-        boss_ce = bossinfo['ce']
-        msg1=f"[CQ:at,qq={uid}]编组成功{bianzu}\n开始进入模拟补时刀\n当前boss为：第{bossinfo['zhoumu']}周目{bossinfo['bossid']}号boss({bossinfo['name']})\nboss战力为{bossinfo['ce']}，当前血量为{bossinfo['hp']}\n您的编组战力为{z_ce}，开始模拟补时刀\n{bossinfo['icon']}"
-        tas_list = []
-        data = {
-            "type": "node",
-            "data": {
-                "name": "会战系统",
-                "uin": "794275021",
-                "content":msg1
-                    }
-                }
-        tas_list.append(data)
-        
-        #计算造成的伤害
-        #2者相加的总战力
-        zhanlz = boss_ce + z_ce
-        #计算总战力扩值
-        kuo = zhanlz * zhanlz
-        #计算总战力差值
-        cha = (zhanlz/z_ce)
-        #计算无战力压制因素的输出伤害
-        shuchu = (kuo/boss_ce)/cha
-        #计算战力压制因素印象可以造成的伤害比
-        zhanbi = z_ce/zhanlz+1
-        #计算输出浮动数+-10%
-        fudong = int(math.floor( random.uniform(1,20) ))
-        if fudong>10:
-            fudong = fudong/200+1
-        else:
-            fudong = 1-fudong/100
-        #计算最终输出伤害
-        shanghai_zc = math.ceil((shuchu * fudong)/zhanbi)
-        shanghai = math.ceil((shuchu * fudong)/zhanbi * card_jk)
-        msg = ''
-        #判断造成的伤害是否大于boss血量
-        if shanghai>bossinfo['hp']:
-            #计算健康状态
-            #card_jk = 100-math.ceil(bossinfo['hp']/shanghai*100)
-            #计算下一个boss
-            nextboss = bossinfo['bossid'] + 1
-            nextzhoumu = bossinfo['zhoumu']
-            if nextboss == 6:
-                nextboss = 1
-                nextzhoumu = bossinfo['zhoumu'] + 1
-            nextbossinfo = get_nextbossinfo(nextzhoumu,nextboss,shijieflag)
-            boss_msg = f"模拟击杀了boss\n下一个boss为：第{nextzhoumu}周目{nextboss}号boss({nextbossinfo['name']})"
-            msg = msg + f"您模拟战对boss造成了{shanghai}点伤害，{boss_msg}\n由于伤害超出boss剩余血量，实际模拟造成伤害为{bossinfo['hp']}点\n{nextbossinfo['icon']}"
-        else:
-            
-            #计算下一个boss
-            nextboss = bossinfo['bossid']
-            nextzhoumu = bossinfo['zhoumu']
-            if shanghai==bossinfo['hp']:
-                nextboss = bossinfo['bossid'] + 1
-                if nextboss == 6:
-                    nextboss = 1
-                    nextzhoumu = bossinfo['zhoumu'] + 1
-                nextbossinfo = get_nextbossinfo(nextzhoumu,nextboss,shijieflag)
-                boss_msg = f"击杀了boss\n下一个boss为：第{nextzhoumu}周目{nextboss}号boss({nextbossinfo['name']})\n{nextbossinfo['icon']}"
-            else:
-                now_hp = bossinfo['hp'] - shanghai
-                boss_msg = f"boss剩余血量{now_hp}点"
-            msg = msg + f"您对boss造成了{shanghai}点伤害，{boss_msg}"
-        data = {
-            "type": "node",
-            "data": {
-                "name": "会战系统",
-                "uin": "794275021",
-                "content":msg
-                    }
-                }
-        tas_list.append(data)
-        await bot.send_group_forward_msg(group_id=ev['group_id'], messages=tas_list)
-    else:
-        await bot.finish(ev, '无法获取boss信息', at_sender=True)
-        return
 @sv.on_rex(f'^(.*)补时刀$')
 async def start_bushi(bot, ev: CQEvent):
     gid = ev.group_id
@@ -1014,15 +896,13 @@ async def start_bushi(bot, ev: CQEvent):
     gotype = str(match.group(1))
     gotype = re.sub(r'[?？，,_ ]', '', gotype)
     if gotype == "世界boss":
-        sendgid = 999
-        shijieflag = 1
-        keygid = gid + sendgid
+        await bot.finish(ev, '世界boss已下线，请使用boss战。', at_sender=True)
     elif gotype == "boss战":
         sendgid = gid
         shijieflag = 0
         keygid = gid
     else:
-        await bot.finish(ev, '请选择正确的boss战类型（世界boss/boss战）', at_sender=True)
+        await bot.finish(ev, '请选择正确的boss战类型（boss战）', at_sender=True)
     
     guid = keygid ,uid
     if not daily_boss_limiter.check(guid):
@@ -1205,15 +1085,13 @@ async def start_huizhan(bot, ev: CQEvent):
     gotype = str(match.group(2))
     gotype = re.sub(r'[?？，,_ ]', '', gotype)
     if gotype == "世界boss":
-        sendgid = 999
-        shijieflag = 1
-        keygid = gid + sendgid
+        await bot.finish(ev, '世界boss已下线，请使用boss战。', at_sender=True)
     elif gotype == "boss战":
         sendgid = gid
         shijieflag = 0
         keygid = gid
     else:
-        await bot.finish(ev, '请选择正确的boss战类型（世界boss/boss战）', at_sender=True)
+        await bot.finish(ev, '请选择正确的boss战类型（boss战）', at_sender=True)
     nowyear = datetime.now().year
     nowmonth = datetime.now().month
     nowday = datetime.now().day
@@ -1225,7 +1103,7 @@ async def start_huizhan(bot, ev: CQEvent):
     defen = str(match.group(1))
     defen = re.sub(r'[?？，,_]', '', defen)
     if not defen:
-        await bot.finish(ev, '请发送"编队+女友名/队伍名+开始+(boss战/世界boss)"，无需+号', at_sender=True)
+        await bot.finish(ev, '请发送"编队+女友名/队伍名+开始boss战"，无需+号', at_sender=True)
     #查询是否是队伍
     teamlist = CE._get_teamlist(gid, uid, defen)
     if teamlist!=0:
@@ -1418,15 +1296,14 @@ async def boss_help(bot, ev: CQEvent):
     msg='''
 ╔                                        ╗  
              会战系统帮助
-1. (boss战/世界boss)状态
-2. 编队+女友名(最多5名，用空格隔开)开始(boss战/世界boss)
-3. 编队+女友名(最多5名，用空格隔开)模拟(boss战/世界boss)
-4. (boss战/世界boss)补时刀模拟
-5. (boss战/世界boss)补时刀
-6. (boss战/世界boss)伤害排行 ->查询个人伤害在本群中的排行
-7. 会战群排名[+上月] ->查询本群在所有群中的排行
+1. boss战状态
+2. 编队+女友名(最多5名，用空格隔开)开始boss战
+3. 编队+女友名(最多5名，用空格隔开)模拟boss战
+4. boss战补时刀
+5. boss战伤害排行 ->查询个人伤害在本群中的排行
+6. 会战群排名[+上月] ->查询本群在所有群中的排行
 注:
-世界boss为所有加的群一起打，打死一个boss有装备掉落，不同类型的boss每日各有3次次数
+boss战每日3次次数，打死一个boss有装备掉落
 每月会进行boss重置和奖励结算，根据群排行最多可获得4000副本币！
 ╚                                        ╝
  '''  
@@ -1440,28 +1317,17 @@ async def shuchu_list(bot, ev: CQEvent):
     gotype = str(match.group(1))
     gotype = re.sub(r'[?？，,_ ]', '', gotype)
     if gotype == "世界boss":
-        sendgid = 999
-        shijieflag = 1
+        await bot.finish(ev, '世界boss已下线，请使用boss战。', at_sender=True)
     elif gotype == "boss战":
         sendgid = gid
         shijieflag = 0
     else:
-        await bot.finish(ev, '请选择正确的boss战类型（世界boss/boss战）', at_sender=True)
+        await bot.finish(ev, '请选择正确的boss战类型（boss战）', at_sender=True)
     shuchu_list = CE._get_shuchu_pm(gid, shijieflag)
     
     if shuchu_list == 0:
         await bot.finish(ev, f'本群没有{gotype}的出刀记录哦', at_sender=True)
     tas_list = []
-    if shijieflag == 1:
-        data = {
-            "type": "node",
-            "data": {
-                "name": "会战系统",
-                "uin": "794275021",
-                "content":f"为保护个人隐私，世界boss只显示本群数据"
-                    }
-                }
-        tas_list.append(data)
     for shuchu in shuchu_list:
         #print(shuchu)
         data = {
@@ -1482,8 +1348,8 @@ async def boss_info(bot, ev: CQEvent):
     gotype = str(match.group(1))
     gotype = re.sub(r'[?？，,_ ]', '', gotype)
     if gotype == "世界boss":
-        sendgid = 999
-        shijieflag = 1
+        await bot.send(ev, '世界boss已下线，请使用boss战。')
+        return
     elif gotype == "boss战":
         sendgid = gid
         shijieflag = 0
@@ -2053,11 +1919,9 @@ async def paiming_list(bot, ev: CQEvent):
     for shuchu in shuchu_list:
         if shuchu[0] not in group_list:
             group_list.append(shuchu[0])
-    msg = ''
-    grouplist_s=[]
-    grouplist_b=[]
+    msg_b = ''
+    grouplist_b = []
     for groupid in group_list:
-        defen_s = 0
         defen_b = 0
         for shuchuinfo in shuchu_list:
             if shuchuinfo[0] == groupid:
@@ -2065,32 +1929,13 @@ async def paiming_list(bot, ev: CQEvent):
                 bossid = shuchuinfo[3] - 1
                 beilv = bl_list[zhoumu][bossid]
                 defen = math.ceil(shuchuinfo[4] * beilv)
-                #sc_text = f"{groupid},周目{shuchuinfo[2]},boss{shuchuinfo[3]},倍率{beilv},类型{shuchuinfo[5]},伤害{shuchuinfo[4]}"
-                #print(sc_text)
                 if shuchuinfo[5] == 1:
-                    defen_s = defen_s + defen
-                else:
-                    defen_b = defen_b + defen
-        dfgroup_s = [groupid,defen_s]
-        dfgroup_b = [groupid,defen_b]
-        grouplist_s.append(dfgroup_s)
-        grouplist_b.append(dfgroup_b)
-    
-    grouplist_s = sorted(grouplist_s,key=lambda cus:cus[1],reverse=True)
-    grouplist_b = sorted(grouplist_b,key=lambda cus:cus[1],reverse=True)
-    
-    msg_s = ''
-    mingc_s = 1
-    for info in grouplist_s:
-        if info[0] == gid:
-            groupid = info[0]
-            msg_s_q = f"本群{leibie}总积分{info[1]},排名第{mingc_s}名\n"
-        else:
-            groupid = str(info[0])
-            groupid = str(groupid[:3]) + '****' + str(groupid[-3:])
-        msg_s = msg_s + f"群号：{groupid}，总积分：{info[1]},名次：{mingc_s}\n"
-        mingc_s = mingc_s + 1
-        
+                    continue
+                defen_b = defen_b + defen
+        grouplist_b.append([groupid, defen_b])
+
+    grouplist_b = sorted(grouplist_b, key=lambda cus: cus[1], reverse=True)
+
     msg_b = ''
     mingc_b = 1
     for info in grouplist_b:
@@ -2102,10 +1947,8 @@ async def paiming_list(bot, ev: CQEvent):
             groupid = str(groupid[:3]) + '****' + str(groupid[-3:])
         msg_b = msg_b + f"群号：{groupid}，总积分：{info[1]},名次：{mingc_b}\n"
         mingc_b = mingc_b + 1
-    
-    
-    await bot.send(ev, f"{msg_s_b}{leibie}boss战群排行榜\n{msg_b}")    
-    await bot.send(ev, f"{msg_s_q}{leibie}世界boss群排行榜\n{msg_s}")
+
+    await bot.send(ev, f"{msg_s_b}{leibie}boss战群排行榜\n{msg_b}")
 
 @sv.scheduled_job('cron', hour ='*',)
 async def clock():
@@ -2173,11 +2016,9 @@ async def clock():
     for shuchu in shuchu_list:
         if shuchu[0] not in group_list:
             group_list.append(shuchu[0])
-    msg = ''
-    grouplist_s=[]
-    grouplist_b=[]
+    msg_b = ''
+    grouplist_b = []
     for groupid in group_list:
-        defen_s = 0
         defen_b = 0
         for shuchuinfo in shuchu_list:
             if shuchuinfo[0] == groupid:
@@ -2185,59 +2026,26 @@ async def clock():
                 bossid = shuchuinfo[3] - 1
                 beilv = bl_list[zhoumu][bossid]
                 defen = math.ceil(shuchuinfo[4] * beilv)
-                #sc_text = f"{groupid},周目{shuchuinfo[2]},boss{shuchuinfo[3]},倍率{beilv},类型{shuchuinfo[5]},伤害{shuchuinfo[4]}"
-                #print(sc_text)
                 if shuchuinfo[5] == 1:
-                    defen_s = defen_s + defen
-                else:
-                    defen_b = defen_b + defen
-        dfgroup_s = [groupid,defen_s]
-        dfgroup_b = [groupid,defen_b]
-        grouplist_s.append(dfgroup_s)
-        grouplist_b.append(dfgroup_b)
-    
-    grouplist_s = sorted(grouplist_s,key=lambda cus:cus[1],reverse=True)
-    grouplist_b = sorted(grouplist_b,key=lambda cus:cus[1],reverse=True)
-    
-    msg_s = ''
-    mingc_s = 1
-    for info in grouplist_s:
-        groupid = str(info[0])
-        groupid = str(groupid[:3]) + '****' + str(groupid[-3:])
-        msg_s = msg_s + f"群号：{groupid}，总积分：{info[1]},名次：{mingc_s}\n"
-        mingc_s = mingc_s + 1
-        
-    msg_b = ''
-    mingc_b = 1
-    for info in grouplist_b:
-        groupid = str(info[0])
-        groupid = str(groupid[:3]) + '****' + str(groupid[-3:])
-        msg_b = msg_b + f"群号：{groupid}，总积分：{info[1]},名次：{mingc_b}\n"
-        mingc_b = mingc_b + 1
-    
-    mingcilist_s = {}
-    mingc_s = 1
-    for info in grouplist_s:
-        mingcilist_s[info[0]] = mingc_s
-        mingc_s = mingc_s + 1
-        
+                    continue
+                defen_b = defen_b + defen
+        grouplist_b.append([groupid, defen_b])
+
+    grouplist_b = sorted(grouplist_b, key=lambda cus: cus[1], reverse=True)
+
     mingcilist_b = {}
     mingc_b = 1
     for info in grouplist_b:
         mingcilist_b[info[0]] = mingc_b
         mingc_b = mingc_b + 1
-    
+
     for groupid in group_list:
-        
-        tas_list_s = []
-        tas_list_b = []
-        uidlist_s = []
-        uidlist_b = []
-        gidmc_s = mingcilist_s[groupid]
-        gidmc_b = mingcilist_b[groupid]
-        gidjl_s = jianglilist[gidmc_s]
+        gidmc_b = mingcilist_b.get(groupid)
+        if gidmc_b is None:
+            continue
         gidjl_b = jianglilist[gidmc_b]
-        
+        tas_list_b = []
+        uidlist_b = []
         data = {
             "type": "node",
             "data": {
@@ -2247,65 +2055,21 @@ async def clock():
                     }
                 }
         tas_list_b.append(data)
-        
-        data = {
-            "type": "node",
-            "data": {
-                "name": "BOSS战月排行奖励发放",
-                "uin": "794275021",
-                "content":msg_b
-                    }
-                }
-        tas_list_b.append(data)
-        
-        data = {
-            "type": "node",
-            "data": {
-                "name": "世界BOSS战月排行奖励发放",
-                "uin": "794275021",
-                "content":f"本群世界boss群排名第{gidmc_s}名，获得奖励"
-                    }
-                }
-        tas_list_s.append(data)
-        
-        data = {
-            "type": "node",
-            "data": {
-                "name": "世界BOSS战月排行奖励发放",
-                "uin": "794275021",
-                "content":msg_s
-                    }
-                }
-        tas_list_s.append(data)
-        
         for shuchuinfo in shuchu_list:
             if shuchuinfo[0] == groupid:
                 if shuchuinfo[5] == 1:
-                    if shuchuinfo[1] not in uidlist_s:
-                        uidlist_s.append(shuchuinfo[1])
-                        CE._add_dunscore(groupid, shuchuinfo[1], gidjl_s)
-                        data = {
-                            "type": "node",
-                            "data": {
-                                "name": "奖励",
-                                "uin": "794275021",
-                                "content":f"[CQ:at,qq={shuchuinfo[1]}]您获得了{gidjl_s}副本币"
-                                    }
+                    continue
+                if shuchuinfo[1] not in uidlist_b:
+                    uidlist_b.append(shuchuinfo[1])
+                    CE._add_dunscore(groupid, shuchuinfo[1], gidjl_b)
+                    data = {
+                        "type": "node",
+                        "data": {
+                            "name": "奖励",
+                            "uin": "794275021",
+                            "content":f"[CQ:at,qq={shuchuinfo[1]}]您获得了{gidjl_b}副本币"
                                 }
-                        tas_list_s.append(data)
-                else:
-                    if shuchuinfo[1] not in uidlist_b:
-                        uidlist_b.append(shuchuinfo[1])
-                        CE._add_dunscore(groupid, shuchuinfo[1], gidjl_b)
-                        data = {
-                            "type": "node",
-                            "data": {
-                                "name": "奖励",
-                                "uin": "794275021",
-                                "content":f"[CQ:at,qq={shuchuinfo[1]}]您获得了{gidjl_b}副本币"
-                                    }
-                                }
-                        tas_list_b.append(data)
-        await bot.send_group_forward_msg(group_id=groupid, messages=tas_list_s)
+                            }
+                    tas_list_b.append(data)
         await bot.send_group_forward_msg(group_id=groupid, messages=tas_list_b)
     

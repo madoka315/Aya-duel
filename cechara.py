@@ -16,10 +16,6 @@ import copy
 import json
 from . import *
 
-@sv.on_prefix(['测试测试'])
-async def test(bot, ev: CQEvent):
-    await bot.send(ev, 'success')
-
 @sv.on_prefix(['女友信息','我的女友'])
 async def my_fashion_info(bot, ev: CQEvent):
     args = ev.message.extract_plain_text().split()
