@@ -90,7 +90,7 @@ async def noblelogin(bot, ev: CQEvent):
     
    #根据爵位的每日固定收入（皇帝以上封顶，防止新等级放大通胀）
     level = duel._get_level(gid, uid)
-    score2 = 50*min(level,7)
+    score2 = 50*min(level,10)
     scoresum = score1+score2
     score_counter._add_score(gid, uid, scoresum)
     noblename = get_noblename(level)
@@ -422,7 +422,7 @@ async def noble_upgrade(bot, ev: CQEvent):
         await bot.send(ev, msg, at_sender=True)
         return
 
-    if level == 6:
+    if level == 9:
         msg = f'您已经是国王了， 需要通过声望加冕称帝哦。'
         await bot.send(ev, msg, at_sender=True)
         return
@@ -487,7 +487,7 @@ async def add_warehouse(bot, ev: CQEvent):
     if duel_judger.get_on_off_status(ev.group_id):
         msg = '现在正在决斗中哦，请决斗后再来购买上限吧。'
         await bot.finish(ev, msg, at_sender=True)
-    if level < 6:
+    if level < 9:
         await bot.finish(ev, '只有国王以上才能增加女友上限哦。', at_sender=True)
     if current_score < SHANGXIAN_NUM:
         msg = f'增加女友上限需要消耗{SHANGXIAN_NUM}金币，您的金币不足哦。'
@@ -577,7 +577,7 @@ async def prestige_help(bot, ev: CQEvent):
 声望系统相关指令如下
 1. 开启声望系统
 2. 查询声望
-3. 加冕仪式(需要10000声望，5000金币）
+3. 加冕仪式(需要15000声望，20000金币，6名挚爱）
 4. 皇室婚礼+角色名(需3000声望，3000金币)
 5. 用金币兑换声望
 
@@ -614,18 +614,22 @@ async def be_emperor(bot, ev: CQEvent):
     
     if prestige == None:
         await bot.finish(ev, '您还未开启声望系统哦。', at_sender=True)
-    if level!=6:
+    if level!=9:
         await bot.finish(ev, '只有国王才能进行加冕仪式哦。', at_sender=True)
   
-    if prestige < 10000: 
-        await bot.finish(ev, '加冕仪式需要10000声望，您的声望不足哦。', at_sender=True)
+    needfavor = get_favor_need(10)
+    true_love = count_true_love(gid, uid)
+    if true_love < needfavor:
+        await bot.finish(ev, f'加冕仪式需要{needfavor}名挚爱女友(好感>={TRUE_LOVE_FAVOR})，您现在有{true_love}名。', at_sender=True)
+    if prestige < 15000: 
+        await bot.finish(ev, '加冕仪式需要15000声望，您的声望不足哦。', at_sender=True)
     score = score_counter._get_score(gid, uid)
-    if score < 5000:
-        await bot.finish(ev, '加冕仪式需要5000金币，您的金币不足哦。', at_sender=True)
-    score_counter._reduce_score(gid,uid,5000)
-    score_counter._reduce_prestige(gid,uid,10000)
-    duel._set_level(gid, uid, 7)
-    msg = '\n礼炮鸣响，教皇领唱“感恩赞美歌”。“皇帝万岁！”\n在民众的欢呼声中，你加冕为了皇帝。\n花费了10000点声望，5000金币。'
+    if score < 20000:
+        await bot.finish(ev, '加冕仪式需要20000金币，您的金币不足哦。', at_sender=True)
+    score_counter._reduce_score(gid,uid,20000)
+    score_counter._reduce_prestige(gid,uid,15000)
+    duel._set_level(gid, uid, 10)
+    msg = '\n礼炮鸣响，教皇领唱“感恩赞美歌”。“皇帝万岁！”\n在民众的欢呼声中，你加冕为了皇帝。\n花费了15000点声望，20000金币。'
     await bot.send(ev, msg, at_sender=True)
         
     
@@ -640,7 +644,7 @@ async def marry_queen(bot, ev: CQEvent):
     prestige = score_counter._get_prestige(gid,uid)
     if prestige == None:
         await bot.finish(ev, '您还未开启声望系统哦。', at_sender=True)    
-    if level < 7:
+    if level < 10:
         await bot.finish(ev, '只有皇帝以上才可以举办皇室婚礼哦。', at_sender=True)  
     if duel._search_queen(gid,uid)!=0:
         await bot.finish(ev, '皇帝只可以举办一次皇室婚礼哦。', at_sender=True)

@@ -279,7 +279,7 @@ async def duel_start(bot, ev: CQEvent):
 
    #判定败者是否掉爵位，皇帝不会因为决斗掉爵位。
     level_loser = duel._get_level(gid, loser)
-    if 1 < level_loser < 7:
+    if 1 < level_loser < 10:
         noblename_loser = get_noblename(level_loser)
         girlnum_loser = get_girlnum(level_loser - 1)
         cidlist_loser = duel._get_cards(gid, loser)
@@ -312,7 +312,7 @@ async def duel_start(bot, ev: CQEvent):
     winuid = []
     supportmsg = '金币结算:\n'
     winmsg = get_noblename(level_loser)
-    win_reward = min(level_loser,7)*40+random.randint(0,20)
+    win_reward = min(level_loser,10)*40+random.randint(0,20)
     score_counter._add_score(gid, winner, win_reward)
     supportmsg += f'(决斗 {winmsg} 获胜)[CQ:at,qq={winner}]+{win_reward}金币\n'
     winnum = duel_judger.get_duelnum(gid, winner)
