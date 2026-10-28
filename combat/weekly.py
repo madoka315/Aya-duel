@@ -24,25 +24,26 @@ def get_period():
 
 
 def load_bosses():
-    """读取 bossinfo.json，按 bossid 去重，返回 [{bossid, name, fenshu}]"""
+    """读取 bossinfo.json（3 档 × 5 个），按文件顺序返回 15 个 boss"""
     with open(os.path.join(FILE_PATH, 'bossinfo.json'), 'r', encoding='UTF-8') as fa:
         bosslist = json.load(fa, strict=False)
-    bosses = {}
-    for x in bosslist:
-        for j in bosslist[x]['bosslist']:
-            boss = bosslist[x]['bosslist'][j]
-            bosses[int(boss['bossid'])] = {
+    bosses = []
+    for tier in sorted(bosslist, key=int):
+        group = bosslist[tier]
+        for j in sorted(group['bosslist'], key=int):
+            boss = group['bosslist'][j]
+            bosses.append({
                 'bossid': int(boss['bossid']),
                 'name': boss['name'],
-                'fenshu': boss.get('fenshu', 1),
-            }
-    return [bosses[k] for k in sorted(bosses)]
+                'tier': int(tier),
+            })
+    return bosses
 
 
 def load_boss(period):
     bosses = load_bosses()
     if not bosses:
-        return {'bossid': 1, 'name': '神秘之影', 'fenshu': 1}
+        return {'bossid': 1, 'name': '神秘之影'}
     return bosses[period % len(bosses)]
 
 
@@ -53,19 +54,19 @@ def weekly_hp(gid):
 
 
 def get_state(gid):
-    """返回 (period, boss, hp, max_hp)，首次进入自动开新周目"""
+    """返回 (period, boss, hp, max_hp)；WEEKLYSTATE.BOSSID 存 1~15 的序号"""
     CE = CECounter()
     period = get_period()
     max_hp = weekly_hp(gid)
-    bossid, hp = CE._get_weeklystate(gid, period)
-    if bossid == 0:
+    bosses = load_bosses()
+    index, hp = CE._get_weeklystate(gid, period)
+    if not (1 <= index <= len(bosses)):
         boss = load_boss(period)
+        index = bosses.index(boss) + 1
         hp = max_hp
-        CE._set_weeklystate(gid, period, boss['bossid'], hp)
+        CE._set_weeklystate(gid, period, index, hp)
         return period, boss, hp, max_hp
-    bosses = {b['bossid']: b for b in load_bosses()}
-    boss = bosses.get(bossid, {'bossid': bossid, 'name': '神秘之影', 'fenshu': 1})
-    return period, boss, hp, max_hp
+    return period, bosses[index - 1], hp, max_hp
 
 
 def top_girls(gid, uid, num):
@@ -97,7 +98,7 @@ async def weekly_fight(bot, ev: CQEvent):
     daily_weekly_limiter.increase((gid, uid))
     team = top_girls(gid, uid, WEEKLY_TEAM_SIZE)
     team_ce = sum(get_card_ce(gid, uid, cid) for cid in team)
-    dmg = int(team_ce * random.uniform(WEEKLY_DMG_MIN, WEEKLY_DMG_MAX) * boss.get('fenshu', 1))
+    dmg = int(team_ce * random.uniform(WEEKLY_DMG_MIN, WEEKLY_DMG_MAX))
     applied = min(dmg, hp)
     new_hp = hp - applied
     CE._add_weeklyfight(gid, uid, period, applied)
