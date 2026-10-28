@@ -11,6 +11,11 @@ from .roster import UNKNOWN
 
 logger = log.new_logger('pcr_duel.chara', hoshino.config.DEBUG)
 
+#所有 DLC 角色的 id 集合：它们的头像只认插件私有目录，绝不写进 priconne 的共享图库
+_DLC_CHARA_IDS = set()
+for _ids in data.DLC_IDS.values():
+    _DLC_CHARA_IDS.update(_ids)
+
 try:
     gadget_equip = R.img('priconne/gadget/equip.png').open()
     gadget_star = R.img('priconne/gadget/star.png').open()
@@ -77,15 +82,17 @@ class Chara:
     @property
     def icon(self):
         star = '3' if 1 <= self.star <= 5 else '6'
-        res = R.img(f'priconne/unit/icon_unit_{self.id}{star}1.png')
-        if not res.exist:
-            res = R.img(f'priconne/unit/icon_unit_{self.id}31.png')
-        if not res.exist:
-            res = R.img(f'priconne/unit/icon_unit_{self.id}11.png')
-        if not res.exist:
+       #头像查找顺序：插件私有目录 -> 共享 priconne 目录 -> unknown
+       #DLC 角色的图只放插件私有目录，避免和 priconne 的原生角色共用图库
+        for prefix in ('pcr_duel/unit', 'priconne/unit'):
+            for suffix in (f'{star}1', '31', '11'):
+                res = R.img(f'{prefix}/icon_unit_{self.id}{suffix}.png')
+                if res.exist:
+                    return res
+       #基础角色缺图时后台补图；DLC 角色缺图直接用 unknown，绝不向共享目录写入
+        if self.id not in _DLC_CHARA_IDS:
             _schedule_download(self.id)
-            res = R.img(f'priconne/unit/icon_unit_{UNKNOWN}31.png')
-        return res
+        return R.img(f'priconne/unit/icon_unit_{UNKNOWN}31.png')
 
     def render_icon(self, size, star_slot_verbose=True) -> Image:
         try:
