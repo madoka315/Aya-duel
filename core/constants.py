@@ -16,17 +16,12 @@ DUEL_SUPPORT_TIME = 30# 赌钱等待时间
 DB_PATH = os.path.expanduser("~/.hoshino/pcr_duel.db")
 SIGN_DAILY_LIMIT = 1 # 机器人每天签到的次数
 DUEL_DAILY_LIMIT = 10#每个人每日发起决斗上限
-DUN_DAILY_LIMIT = 6 #每个人每日副本上限
-BOSS_DAILY_LIMIT = 3 #会战与世界boss次数
-EQUIP_DAILY_LIMIT = 5 #副本商城兑换次数
 SW_DAILY_LIMIT = 5000#金币兑换声望限制
-G2DUN_LIMIT = 10000
 ALLOWANCE_DAILY_LIMIT = 10
 RESET_HOUR = 0 # 每日使用次数的重置时间，0代表凌晨0点，1代表凌晨1点，以此类推
 SHANGXIAN_NUM = 1000 #增加女友上限所需金币
 WAREHOUSE_NUM = 20 #仓库增加上限次数
 CARD_LEVEL_MAX = 100 #女友等级上限
-GECHA_DUNDCORE = 50#抽武器所需副本币
 ZERO_GET_AMOUNT = 50 # 没钱补给量
 WIN_NUM = 1#下注获胜赢得的倍率
 WIN_EXP = 100 #决斗胜利获得经验
@@ -102,6 +97,63 @@ GIFT_PRICE = {0: 200, 7: 200, 8: 200, 5: 300, 6: 300, 9: 300, 1: 500, 2: 500, 3:
 GIFT_PER_GIRL_DAILY = 3#每个女友每天最多收几件礼物
 DATE_EXTRA_COST = 200#付费约会单次金币
 DATE_EXTRA_LIMIT = 2#每天额外付费约会次数
+
+#战力公式（唯一战斗数值出口）：100 + 等级*20 + 好感*1.5 + rank*200
+CE_BASE = 100
+CE_PER_LEVEL = 20
+CE_PER_FAVOR = 1.5
+CE_PER_RANK = 200
+
+#巡逻（原副本）：每天3次，自动用战力最高的女友，按爵位匹配关卡
+PATROL_DAILY_LIMIT = 3
+PATROL_STAGE_CE = {
+    1: 300, 2: 500, 3: 800, 4: 1200, 5: 1600, 6: 2000,
+    7: 2600, 8: 3200, 9: 4000, 10: 5000, 11: 6000, 12: 7000
+}
+PATROL_WIN_MIN = 30#胜率下限（百分比）
+PATROL_WIN_MAX = 90#胜率上限（百分比）
+PATROL_GOLD_BASE = 30#基础金币
+PATROL_GOLD_PER_LEVEL = 10#每爵位额外金币
+PATROL_GOLD_MAX = 150#金币上限
+PATROL_FAVOR = 5#出战女友好感
+PATROL_EXP = 150#出战女友经验
+PATROL_FAIL_RATE = 0.5#失败时按比例给奖励（不惩罚）
+
+#周本（原会战）：每人每天1次出刀，自动取战力最高的5名女友，全群共享血量
+WEEKLY_DAILY_LIMIT = 1
+WEEKLY_TEAM_SIZE = 5
+WEEKLY_BASE_HP = 30000#基础血量
+WEEKLY_HP_PER_NOBLE = 6000#每个贵族追加血量
+WEEKLY_DMG_MIN = 0.8#伤害浮动下限
+WEEKLY_DMG_MAX = 1.2#伤害浮动上限
+WEEKLY_GOLD_DIV = 100#伤害转金币除数
+WEEKLY_GOLD_MAX = 120#单次出刀金币上限
+WEEKLY_FAVOR = 5#出战女友好感
+WEEKLY_EXP = 200#出战女友经验
+WEEKLY_KILL_GOLD = 300#击杀奖励金币
+WEEKLY_KILL_FAVOR = 10#击杀奖励好感
+
+#赛马场：女友参赛，押中第一名固定4.5倍，系统抽水25%
+RACE_DAILY_LIMIT = 3
+RACE_MAX_HORSE = 6#满几匹开跑
+RACE_SIGNUP_TIME = 45#报名/下注时长（秒）
+RACE_SEGMENTS = 3#播报段数
+RACE_SEG_TIME = 3#每段间隔（秒）
+RACE_BET_MIN = 10#单注下限
+RACE_BET_MAX = 1000#单注上限
+RACE_PAYOUT = 4.5#押中第一名返还倍数（含本金）
+RACE_WIN_FAVOR = 20#自家女友夺冠好感
+
+#决斗胜利时按代表女友战力追加金币
+DUEL_WIN_CE_DIV = 20#战力/该值 = 追加金币
+DUEL_WIN_CE_MAX = 300#追加金币上限
+
+#rank升级所需好感（替换原先的4件装备要求）
+RANK_FAVOR_NEED = {
+    1: 30, 2: 60, 3: 100, 4: 150, 5: 200,
+    6: 260, 7: 320, 8: 380, 9: 440, 10: 500
+}
+
 
 RELATIONSHIP_DICT = {
         0:["初见","浣花溪上见卿卿，脸波明，黛眉轻。"],

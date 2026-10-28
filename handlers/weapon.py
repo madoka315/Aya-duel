@@ -1,92 +1,41 @@
 # -*- coding: utf-8 -*-
-"""贵族决斗：武器与弹匣"""
+"""贵族决斗：武器与弹匣（固定 3 种）"""
 from hoshino.typing import CQEvent
 from .. import sv
 from ..core.db.duel import DuelCounter
 from ..core.state import duel_judger
 
 
-    
+WEAPON_LIST = [
+    ('俄罗斯左轮', 6),
+    ('战术型沙漠之鹰', 12),
+    ('格洛克', 20),
+]
+
+
 @sv.on_fullmatch('武器列表')
 async def weapon(bot, ev: CQEvent):
     gid = ev.group_id
-    uid = ev.user_id
     duel = DuelCounter()
     n = duel._get_weapon(gid)
-    if n == 6:
-        msg = '''目前本群启用的武器是俄罗斯左轮，弹匣量为6'''
-    elif n == 2:
-        msg = '''目前本群启用的武器是贝雷塔687，弹匣量为2'''
-    elif n == 20:
-        msg = '''目前本群启用的武器是Glock，弹匣量为20'''
-    elif n == 12:
-        msg = '''目前本群启用的武器是战术型沙漠之鹰，弹匣量为12'''
-    elif n == 10:
-        msg = '''目前本群启用的武器是巴雷特，弹匣量为10'''
-    else:
-        msg = f'目前本群启用的是自定义武器，弹匣量为{n}'
-    msg += '''
-    [切换武器+武器名]
-    可用的武器有
-    1.俄罗斯左轮 6发 
-    2.贝雷塔687  2发
-    3.格洛克   20发
-    4.战术型沙漠之鹰 12发
-    5.巴雷特 10发
-也可发送自定义武器装弹X发来定制自己的武器(不超过10发)'''
-    await bot.send(ev, msg, at_sender=True)
-    
-@sv.on_rex(r'^切换武器(俄罗斯左轮|贝雷塔687|格洛克|战术型沙漠之鹰|巴雷特)$')
-async def weaponchange(bot, ev: CQEvent):
-    gid = ev.group_id
-    uid = ev.user_id
-    match = (ev['match'])
-    weapon = (match.group(1))
-    duel = DuelCounter()
-    if duel_judger.get_on_off_status(ev.group_id):
-        msg = '现在正在决斗中哦，无法切换武器。'
-        await bot.send(ev, msg, at_sender=True)
-        return   
-    if weapon == '俄罗斯左轮':
-        msg = '已启用武器俄罗斯左轮，弹匣量为6'
-        duel._set_weapon(gid,6)
-    if weapon == '贝雷塔687':
-        msg = '已启用武器贝雷塔687，弹匣量为2'
-        duel._set_weapon(gid,2)
-    if weapon == '格洛克':
-        msg = '已启用武器格洛克，弹匣量为20'
-        duel._set_weapon(gid,20)
-    if weapon == '战术型沙漠之鹰':
-        msg = '已启用武器战术型沙漠之鹰，弹匣量为12'
-        duel._set_weapon(gid,12)
-    if weapon == '巴雷特':
-        msg = '已启用武器巴雷特，弹匣量为10'
-        duel._set_weapon(gid,10)
+    name = next((w[0] for w in WEAPON_LIST if w[1] == n), '自定义武器')
+    msg = f'目前本群启用的武器是{name}，弹匣量为{n}\n'
+    msg += '[切换武器+武器名]\n可用的武器有\n'
+    for i, (wname, wnum) in enumerate(WEAPON_LIST):
+        msg += f'{i + 1}.{wname}  {wnum}发\n'
     await bot.send(ev, msg, at_sender=True)
 
-@sv.on_rex(f'^自定义武器装弹(\d+)发$')
-async def weaponchange2(bot, ev: CQEvent):
+
+@sv.on_rex(r'^切换武器(俄罗斯左轮|战术型沙漠之鹰|格洛克)$')
+async def weaponchange(bot, ev: CQEvent):
     gid = ev.group_id
-    uid = ev.user_id
     match = (ev['match'])
-    n = int(match.group(1))
+    weaponname = (match.group(1))
     duel = DuelCounter()
-    if n > 10:
-        msg = '禁止浪费子弹（上限10发）'
-        await bot.send(ev ,msg)
+    if duel_judger.get_on_off_status(gid):
+        await bot.send(ev, '现在正在决斗中哦，无法切换武器。', at_sender=True)
         return
-    if n % 2 != 0:
-        msg = '子弹数量必须是2的倍数喔！'
-        await bot.send(ev, msg, at_sender=True)
-        return 
-    if n == 0:
-        msg = '子弹数不能为0！'
-        await bot.send(ev, msg, at_sender=True)
-        return 
-    if duel_judger.get_on_off_status(ev.group_id):
-        msg = '现在正在决斗中哦，无法切换武器。'
-        await bot.send(ev, msg, at_sender=True)
-        return   
-    duel._set_weapon(gid,n)
-    msg = f'已启用自定义武器，弹匣量为{n}'
+    n = dict(WEAPON_LIST)[weaponname]
+    duel._set_weapon(gid, n)
+    msg = f'已启用武器{weaponname}，弹匣量为{n}'
     await bot.send(ev, msg, at_sender=True)

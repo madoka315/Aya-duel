@@ -10,7 +10,7 @@ from ..core.constants import DATE_EXTRA_COST, DATE_EXTRA_LIMIT, Date10, Date15, 
 from ..core.db.ce import CECounter
 from ..core.db.duel import DuelCounter
 from ..core.db.score import ScoreCounter2
-from ..core.rules import _gen_shop, check_gift, get_card_ce, get_equip_info_id, get_gift_price, get_noblename, get_relationship
+from ..core.rules import _gen_shop, check_gift, get_card_ce, get_gift_price, get_noblename, get_relationship
 from ..core.state import daily_SHOP_limiter, daily_date_extra_limiter, daily_date_limiter, daily_gift_limiter, daily_gift_per_girl_limiter, duel_judger, gift_change
 
 
@@ -597,20 +597,9 @@ async def my_fashion_info(bot, ev: CQEvent):
         up_msg=''
         
         CE = CECounter()
-        equip_list = ''
-        equip_msg = ''
-        dreeslist = CE._get_dress_list(gid, uid, cid)
-        for eid in dreeslist:
-            equipinfo = get_equip_info_id(eid)
-            if equipinfo:
-                equip_list = equip_list + f"\n{equipinfo['type']}:{equipinfo['name']}({equipinfo['model']})"
-        if equip_list:
-            equip_msg = f"\n目前穿戴的装备为:{equip_list}"
-        else:
-            equip_msg = '目前没有穿戴任何装备'
         rank = CE._get_rank(gid,uid,cid)
         level = CE._get_card_level(gid, uid, cid)
         card_exp = CE._get_card_exp(gid,uid,cid)
         card_ce = get_card_ce(gid,uid,cid)
-        msg = f'\n{c.name}{queen_msg}\nRANK：{rank}|等级：{level}|经验：{card_exp}|战力：{card_ce}\n{equip_msg}\n对你的好感是{favor}\n你们的关系是{relationship}\n“{text}”{up_msg}{nvmes}{lh_msg}'
+        msg = f'\n{c.name}{queen_msg}\nRANK：{rank}|等级：{level}|经验：{card_exp}|战力：{card_ce}\n对你的好感是{favor}\n你们的关系是{relationship}\n“{text}”{up_msg}{nvmes}{lh_msg}'
     await bot.send(ev, msg, at_sender=True)  

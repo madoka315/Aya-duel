@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""贵族决斗：总帮助"""
+"""贵族决斗：总帮助（含已下线玩法的友好提示）"""
 from hoshino.typing import CQEvent
 from .. import sv
 from ..core.constants import FORWARD_QQ
@@ -47,7 +47,7 @@ async def duel_help(bot, ev: CQEvent):
       再约会2次
    
   一个女友只属于一位群友；皇帝可迎娶正妻
-  可以从签到、决斗、小游戏等途径入手金币
+  可以从签到、决斗、巡逻、赛马等途径入手金币
   从决斗、兑换等途径获取声望
   
   其他帮助：
@@ -55,10 +55,7 @@ async def duel_help(bot, ev: CQEvent):
   (声望系统国王可开)
   →好感系统帮助
   →dlc帮助
-  →战斗系统帮助(女友战斗力相关)
-  →副本系统帮助(副本战相关)
-  →会战系统帮助(boss战相关)
-  →抽卡系统帮助(女友装备相关)
+  →战斗系统帮助(战力/rank/巡逻/周本/赛马)
 ╚                                        ╝
 '''  
     data = {
@@ -71,3 +68,33 @@ async def duel_help(bot, ev: CQEvent):
     }
     gid = ev.group_id
     await bot.send_group_forward_msg(group_id=gid, messages=data)
+
+
+_OFFLINE_CMDS = [
+    '装备列表', '我的装备', '穿装备', '穿戴装备', '取消装备', '一键穿戴', '一键装备',
+    '一键卸装', '一键取消', '装备分解', '分解装备', '一键分解', '副本商城', '兑换装备',
+    '抽装备', '查看武器池', '武器池', '我的保底', '查看保底', '星尘兑换',
+    '我的副本币', '查副本币', '副本列表', '查看副本', '创建队伍', '解散队伍', '删除队伍',
+    '我的队伍', '查询队伍', '挂机修炼', '开始挂机', '结束修炼', '取消修炼',
+    '副本系统帮助', '副本帮助', '装备帮助', '抽卡系统帮助', '抽卡帮助', '会战系统帮助', '会战帮助',
+]
+
+_OFFLINE_TIP = ('装备、抽卡、副本币、队伍、挂机修炼、会战系统已下线。\n'
+                '战斗相关内容请发送 战斗帮助：\n'
+                '战力 = 100 + 等级×20 + 好感×1.5 + rank×200\n'
+                '日常玩法：巡逻（每日3次）、出刀（周本）、赛马报名')
+
+
+@sv.on_prefix(_OFFLINE_CMDS)
+async def offline_tip(bot, ev: CQEvent):
+    await bot.send(ev, _OFFLINE_TIP, at_sender=True)
+
+
+@sv.on_rex(r'^编队.*(进入副本|boss战|补时刀|模拟).*$')
+async def offline_compose(bot, ev: CQEvent):
+    await bot.send(ev, '编队/副本/会战玩法已下线。\n今日玩法：巡逻（每日3次）、出刀（周本）、赛马报名。', at_sender=True)
+
+
+@sv.on_rex(r'^用\d+金币兑换副本币$')
+async def offline_duncoin(bot, ev: CQEvent):
+    await bot.send(ev, '副本币系统已下线，金币现在直接用于招募、礼物、约会、rank、赛马下注。', at_sender=True)

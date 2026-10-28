@@ -7,5 +7,6 @@ from . import economy  # noqa: F401
 from . import girl  # noqa: F401
 from . import help  # noqa: F401
 from . import noble  # noqa: F401
+from . import race  # noqa: F401
 from . import trade  # noqa: F401
 from . import weapon  # noqa: F401

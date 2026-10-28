@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """贵族决斗：决斗/交易/礼物交换的内存状态机与每日限次器"""
-from .constants import ALLOWANCE_DAILY_LIMIT, BOSS_DAILY_LIMIT, DATE_DAILY_LIMIT, DATE_EXTRA_LIMIT, DUEL_DAILY_LIMIT, DUN_DAILY_LIMIT, EQUIP_DAILY_LIMIT, G2DUN_LIMIT, GIFT_DAILY_LIMIT, GIFT_PER_GIRL_DAILY, RECRUIT_DAILY_LIMIT, RESET_HOUR, Remake_LIMIT, SHOP_LIMIT, SIGN_DAILY_LIMIT, SW_DAILY_LIMIT
+from .constants import ALLOWANCE_DAILY_LIMIT, DATE_DAILY_LIMIT, DATE_EXTRA_LIMIT, DUEL_DAILY_LIMIT, GIFT_DAILY_LIMIT, GIFT_PER_GIRL_DAILY, PATROL_DAILY_LIMIT, RACE_DAILY_LIMIT, RECRUIT_DAILY_LIMIT, RESET_HOUR, Remake_LIMIT, SHOP_LIMIT, SIGN_DAILY_LIMIT, SW_DAILY_LIMIT, WEEKLY_DAILY_LIMIT
 from .db.score import DailyAmountLimiter, ScoreCounter2
 
 
@@ -12,12 +12,11 @@ daily_gift_limiter = DailyAmountLimiter("gift", GIFT_DAILY_LIMIT, RESET_HOUR)
 daily_duel_limiter = DailyAmountLimiter("duel", DUEL_DAILY_LIMIT, RESET_HOUR)
 daily_Remake_limiter = DailyAmountLimiter("Remake", Remake_LIMIT, RESET_HOUR)
 daily_GOLDTOSW_limiter = DailyAmountLimiter("sw", SW_DAILY_LIMIT, RESET_HOUR)
-daily_GOLDTODUN_limiter = DailyAmountLimiter("goldToDun", G2DUN_LIMIT, RESET_HOUR)
 daily_allowance_limiter = DailyAmountLimiter("allowance", ALLOWANCE_DAILY_LIMIT, RESET_HOUR)
 daily_SHOP_limiter = DailyAmountLimiter("shop", SHOP_LIMIT, RESET_HOUR)
-daily_dun_limiter = DailyAmountLimiter("dun", DUN_DAILY_LIMIT, RESET_HOUR)
-daily_boss_limiter = DailyAmountLimiter("boss", BOSS_DAILY_LIMIT, RESET_HOUR)
-daily_equip_limiter = DailyAmountLimiter("equip", EQUIP_DAILY_LIMIT, RESET_HOUR)
+daily_patrol_limiter = DailyAmountLimiter("patrol", PATROL_DAILY_LIMIT, RESET_HOUR)
+daily_weekly_limiter = DailyAmountLimiter("weekly", WEEKLY_DAILY_LIMIT, RESET_HOUR)
+daily_race_limiter = DailyAmountLimiter("race", RACE_DAILY_LIMIT, RESET_HOUR)
 daily_recruit_limiter = DailyAmountLimiter("recruit", RECRUIT_DAILY_LIMIT, RESET_HOUR)
 daily_gift_per_girl_limiter = DailyAmountLimiter("giftgirl", GIFT_PER_GIRL_DAILY, RESET_HOUR)
 daily_date_extra_limiter = DailyAmountLimiter("dateextra", DATE_EXTRA_LIMIT, RESET_HOUR)
@@ -289,3 +288,46 @@ class NvYouJiaoYi:
         
         
 duel_jiaoyier = NvYouJiaoYi()
+
+
+class HorseRace:
+    """赛马场：每群一间内存房间，报名→下注→鸣枪→结算，全内存不落库"""
+
+    def __init__(self):
+        self.rooms = {}
+
+    def get(self, gid):
+        return self.rooms.get(gid)
+
+    def new_room(self, gid, task=None):
+        self.rooms[gid] = {
+            'horses': [],   # [{no, uid, cid, ce, speed, owner_name}]
+            'bets': {},     # uid -> (horse_no, amount)
+            'phase': 'signup',
+            'task': task,
+        }
+        return self.rooms[gid]
+
+    def remove(self, gid):
+        room = self.rooms.pop(gid, None)
+        if room and room.get('task') is not None:
+            task = room['task']
+            if not task.done():
+                task.cancel()
+        return room
+
+    def add_horse(self, gid, uid, cid, ce, name):
+        room = self.rooms.get(gid)
+        if room is None:
+            return None
+        if any(h['uid'] == uid for h in room['horses']):
+            return 'dup'
+        no = len(room['horses']) + 1
+        room['horses'].append({
+            'no': no, 'uid': uid, 'cid': cid, 'ce': ce,
+            'name': name, 'speed': 0, 'pos': 0,
+        })
+        return no
+
+
+horse_race = HorseRace()

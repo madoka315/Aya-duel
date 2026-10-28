@@ -9,11 +9,11 @@ import pytz
 import random
 from .. import chara
 from .. import sv
-from ..core.constants import DUEL_SUPPORT_TIME, WAIT_TIME, WIN_EXP, WIN_NUM, favor_reduce, favor_reduce_NEED
+from ..core.constants import DUEL_WIN_CE_DIV, DUEL_WIN_CE_MAX, DUEL_SUPPORT_TIME, WAIT_TIME, WIN_EXP, WIN_NUM, favor_reduce, favor_reduce_NEED
 from ..core.db.ce import CECounter
 from ..core.db.duel import DuelCounter
 from ..core.db.score import ScoreCounter2
-from ..core.rules import add_exp, get_girlnum, get_noblename, get_noblescore, girl_outlimit
+from ..core.rules import add_exp, get_card_ce, get_girlnum, get_noblename, get_noblescore, girl_outlimit
 from ..core.state import daily_duel_limiter, duel_judger, refund_allin_support
 
 
@@ -104,18 +104,8 @@ async def duel_start(bot, ev: CQEvent):
     id2Lose = duel._get_WLCLOSE(gid,id2)
    #开局快照弹匣量：中途改武器不影响本局的轮数判定与超时判定
     weapon_num = duel._get_weapon(gid)
-    if weapon_num == 6:
-        msg = '''目前本群启用的武器是俄罗斯左轮，弹匣量为6\n'''
-    elif weapon_num == 2:
-        msg = '''目前本群启用的武器是贝雷塔687，弹匣量为2\n'''
-    elif weapon_num == 20:
-        msg = '''目前本群启用的武器是Glock，弹匣量为20\n'''
-    elif weapon_num == 12:
-        msg = '''目前本群启用的武器是战术型沙漠之鹰，弹匣量为12\n'''
-    elif weapon_num == 10:
-        msg = '''目前本群启用的武器是巴雷特，弹匣量为10\n'''
-    else:
-        msg = f'目前本群启用的是自定义武器，弹匣量为{weapon_num}\n'
+    weapon_name = {6: '俄罗斯左轮', 12: '战术型沙漠之鹰', 20: '格洛克'}.get(weapon_num, '自定义武器')
+    msg = f'目前本群启用的武器是{weapon_name}，弹匣量为{weapon_num}\n'
     msg += f'''对方接受了决斗！    
 1号：[CQ:at,qq={id1}]
 爵位为：{noblename1}
@@ -313,8 +303,17 @@ async def duel_start(bot, ev: CQEvent):
     supportmsg = '金币结算:\n'
     winmsg = get_noblename(level_loser)
     win_reward = min(level_loser,10)*40+random.randint(0,20)
+    #代表女友战力追加金币（上限300）
+    rep_cid = CE._get_guaji(gid, winner)
+    rep_msg = ''
+    if rep_cid and rep_cid in duel._get_cards(gid, winner):
+        rep_ce = get_card_ce(gid, winner, rep_cid)
+        ce_bonus = min(DUEL_WIN_CE_MAX, rep_ce // DUEL_WIN_CE_DIV)
+        if ce_bonus > 0:
+            win_reward += ce_bonus
+            rep_msg = f'（代表{chara.fromid(rep_cid).name}战力{rep_ce}，追加{ce_bonus}金币）'
     score_counter._add_score(gid, winner, win_reward)
-    supportmsg += f'(决斗 {winmsg} 获胜)[CQ:at,qq={winner}]+{win_reward}金币\n'
+    supportmsg += f'(决斗 {winmsg} 获胜)[CQ:at,qq={winner}]+{win_reward}金币{rep_msg}\n'
     winnum = duel_judger.get_duelnum(gid, winner)
 
     if support != 0:
