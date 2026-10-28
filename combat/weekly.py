@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """战斗：周本（原会战）——全群共享血量，每人每天 1 次出刀，自动取最强 5 人"""
-from datetime import datetime
+from datetime import datetime, timedelta
 from hoshino.typing import CQEvent
 import json
 import os
@@ -19,6 +19,13 @@ from ..core.state import daily_weekly_limiter
 def get_period():
     """按 ISO 周取周期编号，如 2026 年第 44 周 = 202644"""
     now = datetime.now(pytz.timezone('Asia/Shanghai'))
+    iso = now.isocalendar()
+    return int(iso[0]) * 100 + int(iso[1])
+
+
+def get_prev_period():
+    """上一周的周期编号"""
+    now = datetime.now(pytz.timezone('Asia/Shanghai')) - timedelta(days=7)
     iso = now.isocalendar()
     return int(iso[0]) * 100 + int(iso[1])
 
@@ -47,17 +54,21 @@ def load_boss(period):
     return bosses[period % len(bosses)]
 
 
-def weekly_hp(gid):
+def weekly_hp(gid, period=None):
+    """血量 = max(30,000, 贵族数×2,500, 上周全群总伤害×1.3)"""
+    CE = CECounter()
     duel = DuelCounter()
     noble_num = len(duel._get_uid_list(gid) or [])
-    return max(WEEKLY_BASE_HP, noble_num * WEEKLY_HP_PER_NOBLE)
+    base = max(WEEKLY_BASE_HP, noble_num * WEEKLY_HP_PER_NOBLE)
+    last_total = CE._get_weekly_total(gid, get_prev_period())[0] or 0
+    return max(base, int(last_total * WEEKLY_ADAPT_RATIO))
 
 
 def get_state(gid):
     """返回 (period, boss, hp, max_hp)；WEEKLYSTATE.BOSSID 存 1~15 的序号"""
     CE = CECounter()
     period = get_period()
-    max_hp = weekly_hp(gid)
+    max_hp = weekly_hp(gid, period)
     bosses = load_bosses()
     index, hp = CE._get_weeklystate(gid, period)
     if not (1 <= index <= len(bosses)):
