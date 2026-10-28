@@ -85,6 +85,7 @@ async def help_dlc(bot, ev: CQEvent):
 1. 加载dlc / 卸载dlc +dlc名
 2. dlc列表  (查看介绍)
 卸载后不再抽到，但角色留在仓库可被抢
+重名角色用「名字(包名)」区分
 ╚                                 ╝    
 '''
     await bot.finish(ev, msg)

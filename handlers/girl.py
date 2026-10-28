@@ -69,6 +69,9 @@ async def get_girlname(bot, ev: CQEvent):
         namemsg += f'{name},'
     namemsg = namemsg[:-1]
     msg = f'\n您的第{num_int}名女友的昵称为:\n\n{namemsg}'
+    alias = chara.roster.alias_of(cid)
+    if alias:
+        msg += f'\n（重名角色，可发送「{alias}」指定她）'
     await bot.send(ev, msg, at_sender=True)
 
 

@@ -12,6 +12,22 @@ DLC_DIR = os.path.join(DATA_DIR, 'dlc')
 CHARA_NAME = {}
 DLC_IDS = {}
 
+# DLC 显示名：用于重名角色的「名字(包名)」别名，如 初音未来(啤酒烧烤)
+DLC_NAMES = {
+    'blhx': '碧蓝航线',
+    'yozi': '柚子社',
+    'genshin': '原神',
+    'kancolle': '舰C',
+    'koikake': '恋×彼女',
+    'cloverdays': 'Clover Days',
+    'fgo': 'FGO',
+    'amairochoco': '巧克甜恋',
+    'nekopara': 'Nekopara',
+    'pjsk': '啤酒烧烤',
+    'bangdream': 'BanG Dream',
+    'mrfz': '明日方舟',
+}
+
 
 def _load() -> None:
     global CHARA_NAME, DLC_IDS
