@@ -42,6 +42,8 @@ G2DUN_LIMIT = 10000
 ALLOWANCE_DAILY_LIMIT = 10
 RESET_HOUR = 0 # 每日使用次数的重置时间，0代表凌晨0点，1代表凌晨1点，以此类推
 GACHA_COST = 300 # 抽老婆需求
+SHANGXIAN_NUM = 1000 #增加女友上限所需金币
+WAREHOUSE_NUM = 20 #仓库增加上限次数
 CARD_LEVEL_MAX = 100 #女友等级上限
 GECHA_DUNDCORE = 50#抽武器所需副本币
 ZERO_GET_AMOUNT = 50 # 没钱补给量
@@ -60,7 +62,7 @@ NEED_favor = 200#成为妻子所需要的好感，为0表示关闭
 favor_reduce_NEED = 50#当好感度高于多少时，输扣好感度
 favor_reduce = 10#当输掉女友时，损失的好感度
 FILE_PATH = os.path.dirname(__file__)#用于加载dlcjson
-FULLCARD_PATH = os.path.join(os.path.expanduser(hoshino.config.RES_DIR), 'img', 'priconne', 'fullcard')
+FULLCARD_PATH = os.path.join(FILE_PATH, 'fullcard')
 LEVEL_GIRL_NEED = {
         "1": 3,
         "2": 5,
@@ -268,6 +270,8 @@ async def duel_help(bot, ev: CQEvent):
    18.查询本群不决斗惩罚
    19.用金币兑换声望
    20.神秘商店
+   21.购买上限(限国王以上)
+   22.查名字+女友序号
    
   一个女友只属于一位群友；皇帝可迎娶正妻
   可以从签到、决斗、小游戏等途径入手金币
@@ -307,6 +311,8 @@ fgolist = range(8001,8301)
 amairolist = range(1300,1304)
 nekoparalist = range(9110,9116)
 pjsklist = range(9400,9460)
+bangdreamlist = range(1601,1636)
+mrfzlist = range(5001,5180)
 
 #这里记录dlc名字和对应列表
 #已退休DLC（million/sakukoi/majsoul/noraneko/umamusume/punishing/vtuber/mangekyou/tsubakioka）
@@ -321,7 +327,9 @@ dlcdict = {
         'fgo':fgolist,
         'amairochoco':amairolist,
         'nekopara':nekoparalist,
-        'pjsk':pjsklist
+        'pjsk':pjsklist,
+        'bangdream':bangdreamlist,
+        'mrfz':mrfzlist
         }
 
 dlcdict2 = {
@@ -339,7 +347,9 @@ dlcintro = {
         'fgo':'FGO手游角色包',
         'amairochoco':'巧克甜恋角色包',
         'nekopara':'Nekopara角色包',
-        'pjsk':'啤酒烧烤角色包'
+        'pjsk':'啤酒烧烤角色包',
+        'bangdream':'BanG Dream!手游角色包',
+        'mrfz':'明日方舟手游角色包'
         }
 
 
@@ -746,6 +756,7 @@ class DuelCounter:
         self._create_favortable()
         self._create_gifttable()
         self._create_SWITCH2()
+        self._create_warehousetable()
     def _connect(self):
         return sqlite3.connect(DUEL_DB_PATH)
 
@@ -931,7 +942,33 @@ class DuelCounter:
             r = self._connect().execute("SELECT CID FROM QUEENTABLE WHERE GID=? AND UID=?", (gid, uid)).fetchone()
             return 0 if r is None else r[0]
         except:
-            raise Exception('查找皇后发生错误')  
+            raise Exception('查找皇后发生错误')
+#购买女友上限部分（移植自上游0.7）
+    def _create_warehousetable(self):
+        try:
+            self._connect().execute('''CREATE TABLE IF NOT EXISTS WAREHOUSE
+                          (GID             INT    NOT NULL,
+                           UID           INT    NOT NULL,
+                           NUM           INT    NOT NULL,
+                           PRIMARY KEY(GID, UID));''')
+        except:
+            raise Exception('创建仓库上限表发生错误')
+
+    def _get_warehouse(self, gid, uid):
+        try:
+            r = self._connect().execute("SELECT NUM FROM WAREHOUSE WHERE GID=? AND UID=?", (gid, uid)).fetchone()
+            return 0 if r is None else r[0]
+        except:
+            raise Exception('查找上限发生错误')
+
+    def _add_warehouse(self, gid, uid, num):
+        housenum = self._get_warehouse(gid, uid)
+        housenum += num
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO WAREHOUSE (GID, UID, NUM) VALUES (?, ?, ?)",
+                (gid, uid, housenum),
+            )
 #好感度部分
     def _create_favortable(self):
         try:
@@ -1539,6 +1576,15 @@ def get_girlnum(level: int):
     return numdict[str(level)]
 
 
+# 返回含购买上限加成的女友数上限（移植自上游0.7 购买上限功能）
+def get_girlnum_total(gid, uid):
+    duel = DuelCounter()
+    level = duel._get_level(gid, uid)
+    if level == 0:
+        return 0
+    return get_girlnum(level) + duel._get_warehouse(gid, uid)
+
+
 # 返回升级到爵位所需要的金币数
 def get_noblescore(level: int):
     numdict = LEVEL_COST_DICT
@@ -1548,7 +1594,7 @@ def get_noblescore(level: int):
 def girl_outlimit(gid,uid):
     duel = DuelCounter()
     level = duel._get_level(gid, uid)
-    girlnum = get_girlnum(level)
+    girlnum = get_girlnum_total(gid, uid)
     cidlist = duel._get_cards(gid, uid)
     cidnum = len(cidlist) 
     if cidnum > girlnum:
@@ -2172,7 +2218,7 @@ async def inquire_noble(bot, ev: CQEvent):
         return
     level = duel._get_level(gid, id)
     noblename = get_noblename(level)
-    girlnum = get_girlnum(level)
+    girlnum = get_girlnum_total(gid, id)
     score = score_counter._get_score(gid, id)
     charalist = []
 
@@ -2332,7 +2378,7 @@ async def add_girl(bot, ev: CQEvent):
        # 防止女友数超过上限
         level = duel._get_level(gid, uid)
         noblename = get_noblename(level)
-        girlnum = get_girlnum(level)
+        girlnum = get_girlnum_total(gid, uid)
         cidlist = duel._get_cards(gid, uid)
         cidnum = len(cidlist)
         if cidnum >= girlnum:
@@ -2397,7 +2443,7 @@ async def add_girl(bot, ev: CQEvent):
     score = score_counter._get_score(gid, uid)
     level = duel._get_level(gid, uid)
     noblename = get_noblename(level)
-    girlnum = get_girlnum(level)
+    girlnum = get_girlnum_total(gid, uid)
     cidlist = duel._get_cards(gid, uid)
     cidnum = len(cidlist)
 
@@ -2436,9 +2482,39 @@ async def add_girl(bot, ev: CQEvent):
     duel._add_level(gid, uid)
     newlevel = duel._get_level(gid, uid)
     newnoblename = get_noblename(newlevel)
-    newgirlnum = get_girlnum(newlevel)
+    newgirlnum = get_girlnum_total(gid, uid)
     msg = f'花费了{needscore}金币\n您成功由{noblename}升到了{newnoblename}\n可以拥有{newgirlnum}名女友了哦。'
     await bot.send(ev, msg, at_sender=True)
+
+#购买女友上限（移植自上游0.7）
+@sv.on_fullmatch(['购买上限', '增加上限','增加女友上限','购买女友上限'])
+async def add_warehouse(bot, ev: CQEvent):
+    duel = DuelCounter()
+    score_counter = ScoreCounter2()
+    gid = ev.group_id
+    uid = ev.user_id
+    level = duel._get_level(gid, uid)
+    current_score = score_counter._get_score(gid, uid)
+    if duel_judger.get_on_off_status(ev.group_id):
+        msg = '现在正在决斗中哦，请决斗后再来购买上限吧。'
+        await bot.finish(ev, msg, at_sender=True)
+    if level < 6:
+        await bot.finish(ev, '只有国王以上才能增加女友上限哦。', at_sender=True)
+    if current_score < SHANGXIAN_NUM:
+        msg = f'增加女友上限需要消耗{SHANGXIAN_NUM}金币，您的金币不足哦。'
+        await bot.send(ev, msg, at_sender=True)
+        return
+    else:
+        housenum = duel._get_warehouse(gid, uid)
+        if housenum >= WAREHOUSE_NUM:
+            msg = f'您已增加{WAREHOUSE_NUM}次上限，无法继续增加了哦。'
+            await bot.finish(ev, msg, at_sender=True)
+        duel._add_warehouse(gid, uid, 1)
+        score_counter._reduce_score(gid, uid, SHANGXIAN_NUM)
+        last_score = current_score - SHANGXIAN_NUM
+        myhouse = get_girlnum_total(gid, uid)
+        msg = f'您消耗了{SHANGXIAN_NUM}金币，增加了1个女友上限，目前剩余{last_score}金币，女友上限为{myhouse}名'
+        await bot.send(ev, msg, at_sender=True)
 
 
 @sv.on_prefix('贵族决斗')
@@ -2975,6 +3051,34 @@ async def search_girl(bot, ev: CQEvent):
     else:
         msg = f'{c.name}现在正在\n[CQ:at,qq={owner}]的身边哦。{c.icon.cqcode}'
         await bot.send(ev, msg)
+
+#查名字（移植自上游0.7，按女友序号反查昵称）
+@sv.on_prefix(['查姓名', '女友姓名','女友名字','查名字','查昵称'])
+async def get_girlname(bot, ev: CQEvent):
+    args = ev.message.extract_plain_text().split()
+    gid = ev.group_id
+    uid = ev.user_id
+    duel = DuelCounter()
+    if not args:
+        await bot.finish(ev, '请输入查名字+女友序号(序号即查询贵族中女友排在第几位)。', at_sender=True)
+    num = args[0]
+    if not num.isdigit():
+        await bot.finish(ev, '请输入查名字+女友序号(序号即查询贵族中女友排在第几位)。', at_sender=True)
+    num_int = int(num)
+    cidlist = duel._get_cards(gid, uid)
+    girlnum = len(cidlist)
+    if num_int > girlnum:
+        await bot.finish(ev, f'你所输入的女友序号{num_int}大于您的女友数{girlnum}名', at_sender=True)
+    cid = cidlist[num_int-1]
+    if cid == 9999:
+        cid = 1059
+    namelist = _pcr_data_duel.CHARA_NAME[cid]
+    namemsg = ''
+    for name in namelist:
+        namemsg += f'{name},'
+    namemsg = namemsg[:-1]
+    msg = f'\n您的第{num_int}名女友的昵称为:\n\n{namemsg}'
+    await bot.send(ev, msg, at_sender=True)
 
 
 #重置某一用户的金币，只用做必要时删库用。
