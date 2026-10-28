@@ -5,7 +5,7 @@ import asyncio
 import random
 from .. import chara
 from .. import sv
-from ..core.constants import RACE_BET_MAX, RACE_BET_MIN, RACE_CE_WEIGHT, RACE_DAILY_LIMIT, RACE_MAX_HORSE, RACE_MIN_HORSE, RACE_PAYOUT_EV, RACE_SEGMENTS, RACE_SEG_TIME, RACE_SIGNUP_TIME, RACE_WIN_FAVOR
+from ..core.constants import RACE_BET_MIN, RACE_CE_WEIGHT, RACE_DAILY_LIMIT, RACE_MAX_HORSE, RACE_MIN_HORSE, RACE_PAYOUT_EV, RACE_SEGMENTS, RACE_SEG_TIME, RACE_SIGNUP_TIME, RACE_WIN_FAVOR
 from ..core.db.duel import DuelCounter
 from ..core.db.score import ScoreCounter2
 from ..core.rules import get_card_ce
@@ -190,7 +190,7 @@ async def race_signup(bot, ev: CQEvent):
         room['phase'] = 'closing'
     msg = (f"{no}号 {c.name}（战力{card_ce}）报名成功！\n"
            f"当前参赛：\n{roster}\n"
-           f"下注：押马1号100金币（{RACE_BET_MIN}~{RACE_BET_MAX}金币，每人1注）\n"
+           f"下注：押马1号100金币（最低{RACE_BET_MIN}金币，金额不限，每人1注）\n"
            f"满{RACE_MIN_HORSE}人开跑，{RACE_SIGNUP_TIME}秒后截止；押中第一名按开跑人数返还（{RACE_PAYOUT_EV}×人数）{c.icon.cqcode}")
     await bot.send(ev, msg, at_sender=True)
 
@@ -207,8 +207,8 @@ async def race_bet(bot, ev: CQEvent):
     amount = int(match.group(2))
     if not any(h['no'] == no for h in room['horses']):
         await bot.finish(ev, f'没有{no}号这匹马哦。', at_sender=True)
-    if amount < RACE_BET_MIN or amount > RACE_BET_MAX:
-        await bot.finish(ev, f'单注请控制在{RACE_BET_MIN}~{RACE_BET_MAX}金币之间。', at_sender=True)
+    if amount < RACE_BET_MIN:
+        await bot.finish(ev, f'单注最低{RACE_BET_MIN}金币。', at_sender=True)
     if uid in room['bets']:
         await bot.finish(ev, '您这一局已经下过注了。', at_sender=True)
     score_counter = ScoreCounter2()
@@ -225,7 +225,7 @@ async def race_info(bot, ev: CQEvent):
     room = horse_race.get(gid)
     msg = ('赛马场：\n'
            '1. 赛马报名(+女友名)  用您的女友参赛，每天3局\n'
-           f'2. 押马N号X金币        每人每局1注，{RACE_BET_MIN}~{RACE_BET_MAX}金币\n'
+           f'2. 押马N号X金币        每人每局1注，最低{RACE_BET_MIN}金币、金额不限\n'
            f'3. 满{RACE_MIN_HORSE}人开跑（最多{RACE_MAX_HORSE}匹），{RACE_SIGNUP_TIME}秒截止\n'
            f'4. 押中第一名返还「开跑人数 × {RACE_PAYOUT_EV}」倍（2人1.5倍、4人3倍、6人4.5倍）\n')
     if room is not None and room['phase'] == 'signup':

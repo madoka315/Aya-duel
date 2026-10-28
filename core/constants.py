@@ -141,8 +141,7 @@ RACE_MAX_HORSE = 6#满几匹提前开跑
 RACE_SIGNUP_TIME = 60#报名/下注时长（秒）
 RACE_SEGMENTS = 5#播报段数
 RACE_SEG_TIME = 4#每段间隔（秒）
-RACE_BET_MIN = 10#单注下限
-RACE_BET_MAX = 1000#单注上限
+RACE_BET_MIN = 10#单注下限（不设上限）
 RACE_PAYOUT_EV = 0.75#返还期望：倍率 = 场次人数 × 该值 - 即押中第一名拿 N×0.75 倍
 RACE_CE_WEIGHT = 0.2#战力在速度里的占比（0.9~1.1），其余全靠随机
 RACE_WIN_FAVOR = 20#自家女友夺冠好感
