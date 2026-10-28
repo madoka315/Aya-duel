@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """贵族决斗：决斗/交易/礼物交换的内存状态机与每日限次器"""
-from .constants import ALLOWANCE_DAILY_LIMIT, BOSS_DAILY_LIMIT, DATE_DAILY_LIMIT, DUEL_DAILY_LIMIT, DUN_DAILY_LIMIT, EQUIP_DAILY_LIMIT, G2DUN_LIMIT, GIFT_DAILY_LIMIT, RESET_HOUR, Remake_LIMIT, SHOP_LIMIT, SIGN_DAILY_LIMIT, SW_DAILY_LIMIT
+from .constants import ALLOWANCE_DAILY_LIMIT, BOSS_DAILY_LIMIT, DATE_DAILY_LIMIT, DATE_EXTRA_LIMIT, DUEL_DAILY_LIMIT, DUN_DAILY_LIMIT, EQUIP_DAILY_LIMIT, G2DUN_LIMIT, GIFT_DAILY_LIMIT, GIFT_PER_GIRL_DAILY, RECRUIT_DAILY_LIMIT, RESET_HOUR, Remake_LIMIT, SHOP_LIMIT, SIGN_DAILY_LIMIT, SW_DAILY_LIMIT
 from .db.score import DailyAmountLimiter, ScoreCounter2
 
 
@@ -18,6 +18,24 @@ daily_SHOP_limiter = DailyAmountLimiter("shop", SHOP_LIMIT, RESET_HOUR)
 daily_dun_limiter = DailyAmountLimiter("dun", DUN_DAILY_LIMIT, RESET_HOUR)
 daily_boss_limiter = DailyAmountLimiter("boss", BOSS_DAILY_LIMIT, RESET_HOUR)
 daily_equip_limiter = DailyAmountLimiter("equip", EQUIP_DAILY_LIMIT, RESET_HOUR)
+daily_recruit_limiter = DailyAmountLimiter("recruit", RECRUIT_DAILY_LIMIT, RESET_HOUR)
+daily_gift_per_girl_limiter = DailyAmountLimiter("giftgirl", GIFT_PER_GIRL_DAILY, RESET_HOUR)
+daily_date_extra_limiter = DailyAmountLimiter("dateextra", DATE_EXTRA_LIMIT, RESET_HOUR)
+
+#招募连败计数（内存，成功清零；重启清零可接受）
+_recruit_fail_count = {}
+
+
+def get_recruit_fail_count(gid, uid):
+    return _recruit_fail_count.get((gid, uid), 0)
+
+
+def add_recruit_fail_count(gid, uid):
+    _recruit_fail_count[(gid, uid)] = get_recruit_fail_count(gid, uid) + 1
+
+
+def clear_recruit_fail_count(gid, uid):
+    _recruit_fail_count.pop((gid, uid), None)
 
 
 def refund_allin_support(gid):

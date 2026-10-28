@@ -6,12 +6,12 @@ import asyncio
 import random
 from .. import chara
 from .. import sv
-from ..core.constants import Date10, Date15, Date20, Date5, GIFTCHOICE_DICT, GIFT_DAILY_LIMIT, GIFT_DICT, SHOP_LIMIT, WAIT_TIME_CHANGE
+from ..core.constants import DATE_EXTRA_COST, DATE_EXTRA_LIMIT, Date10, Date15, Date20, Date5, GIFTCHOICE_DICT, GIFT_DAILY_LIMIT, GIFT_DICT, GIFT_PER_GIRL_DAILY, SHOP_LIMIT, WAIT_TIME_CHANGE
 from ..core.db.ce import CECounter
 from ..core.db.duel import DuelCounter
 from ..core.db.score import ScoreCounter2
-from ..core.rules import _gen_shop, check_gift, get_card_ce, get_equip_info_id, get_noblename, get_relationship
-from ..core.state import daily_SHOP_limiter, daily_date_limiter, daily_gift_limiter, duel_judger, gift_change
+from ..core.rules import _gen_shop, check_gift, get_card_ce, get_equip_info_id, get_gift_price, get_noblename, get_relationship
+from ..core.state import daily_SHOP_limiter, daily_date_extra_limiter, daily_date_limiter, daily_gift_limiter, daily_gift_per_girl_limiter, duel_judger, gift_change
 
 
 
@@ -113,29 +113,40 @@ async def daily_date(bot, ev: CQEvent):
     if cid not in cidlist:
         await bot.finish(ev, '该女友不在你的身边哦。', at_sender=True)    
     guid = gid ,uid
-    if not daily_date_limiter.check(guid):
-        await bot.finish(ev, '今天已经和女友约会过了哦，明天再来吧。', at_sender=True)
-
-    loginnum_ = ['1','2', '3', '4']  
-    r_ = [0.2, 0.4, 0.35, 0.05]  
-    sum_ = 0
-    ran = random.random()
-    for num, r in zip(loginnum_, r_):
-        sum_ += r
-        if ran < sum_ :break
-    Bonus = {'1':[5,Date5],
-             '2':[10,Date10],
-             '3':[15,Date15],    
-             '4':[20,Date20]
-            }             
-    favor = Bonus[num][0]
-    text = random.choice(Bonus[num][1])
+    score_counter = ScoreCounter2()
+    cost_msg = ''
+    if daily_date_limiter.check(guid):
+        loginnum_ = ['1','2', '3', '4']  
+        r_ = [0.2, 0.4, 0.35, 0.05]  
+        sum_ = 0
+        ran = random.random()
+        for num, r in zip(loginnum_, r_):
+            sum_ += r
+            if ran < sum_ :break
+        Bonus = {'1':[5,Date5],
+                 '2':[10,Date10],
+                 '3':[15,Date15],    
+                 '4':[20,Date20]
+                }             
+        favor = Bonus[num][0]
+        text = random.choice(Bonus[num][1])
+        daily_date_limiter.increase(guid)
+    else:
+       #免费约会用完后，可花金币再约会DATE_EXTRA_LIMIT次
+        if not daily_date_extra_limiter.check(guid):
+            await bot.finish(ev, f'今天已经约会过{1+DATE_EXTRA_LIMIT}次了哦，明天再来吧。', at_sender=True)
+        if score_counter._get_score(gid, uid) < DATE_EXTRA_COST:
+            await bot.finish(ev, f'今天的免费约会已经用过了，额外约会需要{DATE_EXTRA_COST}金币，您的金币不足哦。', at_sender=True)
+        score_counter._reduce_score(gid, uid, DATE_EXTRA_COST)
+        daily_date_extra_limiter.increase(guid)
+        favor = random.randint(6,10)
+        text = random.choice(Date10)
+        cost_msg = f'（花费{DATE_EXTRA_COST}金币）'
     duel._add_favor(gid,uid,cid,favor)
     c = chara.fromid(cid)
     current_favor = duel._get_favor(gid,uid,cid)
     relationship = get_relationship(current_favor)[0]
-    msg = f'\n\n{text}\n\n你和{c.name}的好感上升了{favor}点\n她现在对你的好感是{current_favor}点\n你们现在的关系是{relationship}\n{c.icon.cqcode}'
-    daily_date_limiter.increase(guid)
+    msg = f'\n\n{text}\n\n你和{c.name}的好感上升了{favor}点{cost_msg}\n她现在对你的好感是{current_favor}点\n你们现在的关系是{relationship}\n{c.icon.cqcode}'
     await bot.send(ev, msg, at_sender=True)
 
 @sv.on_prefix(['送礼物','送礼','赠送礼物'])
@@ -161,6 +172,10 @@ async def gift_send(bot, ev: CQEvent):
     gfid = GIFT_DICT[gift]
     if duel._get_gift_num(gid,uid,gfid)==0:
         await bot.finish(ev, '你的这件礼物的库存不足哦。', at_sender=True)
+    guidg = gid, uid, cid
+    if not daily_gift_per_girl_limiter.check(guidg):
+        await bot.finish(ev, f'{chara.fromid(cid).name}今天已经收过{GIFT_PER_GIRL_DAILY}件礼物了哦，明天再来吧。', at_sender=True)
+    daily_gift_per_girl_limiter.increase(guidg)
     duel._reduce_gift(gid,uid,gfid)
     favor,text = check_gift(cid,gfid)
     duel._add_favor(gid,uid,cid,favor)
@@ -180,9 +195,6 @@ async def gift_buy(bot, ev: CQEvent):
     if duel_judger.get_on_off_status(ev.group_id):
         msg = '现在正在决斗中哦，请决斗后再来买礼物吧。'
         await bot.finish(ev, msg, at_sender=True)
-    score = score_counter._get_score(gid, uid)
-    if score < 300:
-        await bot.finish(ev, '购买礼物需要300金币，您的金币不足哦。', at_sender=True) 
     if not daily_gift_limiter.check(guid):
         await bot.finish(ev, f'今天购买礼物已经超过{GIFT_DAILY_LIMIT}次了哦，明天再来吧。', at_sender=True)     
     select_gift = random.choice(list(GIFT_DICT.keys()))
@@ -190,9 +202,13 @@ async def gift_buy(bot, ev: CQEvent):
     while(gfid == 10):
         select_gift = random.choice(list(GIFT_DICT.keys()))
         gfid = GIFT_DICT[select_gift]
+    price = get_gift_price(gfid)
+    score = score_counter._get_score(gid, uid)
+    if score < price:
+        await bot.finish(ev, f'这个礼物需要{price}金币，您的金币不足哦。', at_sender=True) 
     duel._add_gift(gid,uid,gfid)
-    msg = f'\n您花费了300金币，\n买到了[{select_gift}]哦，\n欢迎下次惠顾。'
-    score_counter._reduce_score(gid,uid,300)
+    msg = f'\n您花费了{price}金币，\n买到了[{select_gift}]哦，\n欢迎下次惠顾。'
+    score_counter._reduce_score(gid,uid,price)
     daily_gift_limiter.increase(guid)
     await bot.send(ev, msg, at_sender=True)    
 
@@ -208,13 +224,12 @@ async def gift_buy_num(bot, ev: CQEvent):
     if duel_judger.get_on_off_status(ev.group_id):
         msg = '现在正在决斗中哦，请决斗后再来买礼物吧。'
         await bot.finish(ev, msg, at_sender=True)
-    score = score_counter._get_score(gid, uid)
-    if score < 300 * num:
-        await bot.finish(ev, f'购买{num}份礼物需要{300*num}金币，您的金币不足哦。', at_sender=True) 
     if num > (GIFT_DAILY_LIMIT - daily_gift_limiter.checks(guid)):
         await bot.finish(ev, f'今天购买礼物的次数不足哦，您还可以购买{GIFT_DAILY_LIMIT - daily_gift_limiter.checks(guid)}次。', at_sender=True)
     n = num
     giftmsg = ''
+    total = 0
+    giftids = []
     while(n):
         select_gift = random.choice(list(GIFT_DICT.keys()))
         gfid = GIFT_DICT[select_gift]
@@ -222,10 +237,16 @@ async def gift_buy_num(bot, ev: CQEvent):
             select_gift = random.choice(list(GIFT_DICT.keys()))
             gfid = GIFT_DICT[select_gift]
         giftmsg += f'{select_gift} '
-        duel._add_gift(gid,uid,gfid)
+        total += get_gift_price(gfid)
+        giftids.append(gfid)
         n -= 1
-    msg = f'\n您花费了{300*num}金币，\n买到了[{giftmsg}]哦，\n欢迎下次惠顾。'
-    score_counter._reduce_score(gid,uid,300*num)
+    score = score_counter._get_score(gid, uid)
+    if score < total:
+        await bot.finish(ev, f'购买{num}份礼物需要{total}金币，您的金币不足哦。', at_sender=True) 
+    for gfid in giftids:
+        duel._add_gift(gid,uid,gfid)
+    msg = f'\n您花费了{total}金币，\n买到了[{giftmsg}]哦，\n欢迎下次惠顾。'
+    score_counter._reduce_score(gid,uid,total)
     daily_gift_limiter.increase2(guid,num)
     await bot.send(ev, msg, at_sender=True)   
 
@@ -514,12 +535,20 @@ async def gift_send_batch(bot, ev: CQEvent):
         await bot.finish(ev, '这个物品不能作为礼物哦。', at_sender=True)
     if duel._get_gift_num(gid,uid,gfid) < num:
         await bot.finish(ev, '你的这件礼物的库存不足哦。', at_sender=True)
+   #每个女友每天最多收GIFT_PER_GIRL_DAILY件
+    guidg = gid, uid, cid
+    remaining = GIFT_PER_GIRL_DAILY - daily_gift_per_girl_limiter.checks(guidg)
+    if remaining <= 0:
+        await bot.finish(ev, f'{chara.fromid(cid).name}今天已经收过{GIFT_PER_GIRL_DAILY}件礼物了哦，明天再来吧。', at_sender=True)
+    if num > remaining:
+        await bot.finish(ev, f'{chara.fromid(cid).name}今天还能收{remaining}件礼物，请减少数量哦。', at_sender=True)
     x = num
     favor,text = check_gift(cid,gfid)
     while(x):
         duel._reduce_gift(gid,uid,gfid)
         duel._add_favor(gid,uid,cid,favor)
         x -= 1
+    daily_gift_per_girl_limiter.increase(guidg, num)
     current_favor = duel._get_favor(gid,uid,cid)
     relationship = get_relationship(current_favor)[0]
     c = chara.fromid(cid)

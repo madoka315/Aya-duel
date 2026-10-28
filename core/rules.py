@@ -10,7 +10,7 @@ import os
 import pytz
 import random
 from .. import chara
-from .constants import BLACKLIST_ID, CARD_LEVEL_MAX, FILE_PATH, GIFTCHOICE_DICT, GIFT_DICT, Gift1, Gift10, Gift2, Gift5, LEVEL_COST_DICT, LEVEL_GIRL_NEED, RELATIONSHIP_DICT
+from .constants import BLACKLIST_ID, CARD_LEVEL_MAX, FILE_PATH, GIFTCHOICE_DICT, GIFT_DICT, GIFT_PRICE, Gift1, Gift10, Gift2, Gift5, LEVEL_COST_DICT, LEVEL_FAVOR_NEED, LEVEL_GIRL_NEED, LEVEL_PRESTIGE_NEED, RELATIONSHIP_DICT, RECRUIT_BASE_COST, RECRUIT_COST_STEP, RECRUIT_FAIL_RATE, TRUE_LOVE_FAVOR
 from .db.ce import CECounter
 from .db.duel import DuelCounter
 from .dlc import get_dlc_blacklist
@@ -40,7 +40,12 @@ def get_noblename(level: int):
         "4": "侯爵",
         "5": "公爵",
         "6": "国王",
-        "7": "皇帝"
+        "7": "皇帝",
+        "8": "大公",
+        "9": "亲王",
+        "10": "王储",
+        "11": "圣王",
+        "12": "神帝"
     }
     return namedict[str(level)]
 
@@ -64,6 +69,43 @@ def get_girlnum_total(gid, uid):
 def get_noblescore(level: int):
     numdict = LEVEL_COST_DICT
     return numdict[str(level)]
+
+
+# 返回升级到爵位所需要的声望（未配置的等级为0）
+def get_prestige_need(level: int):
+    return LEVEL_PRESTIGE_NEED.get(str(level), 0)
+
+
+# 返回升级到爵位所需要的挚爱女友数
+def get_favor_need(level: int):
+    return LEVEL_FAVOR_NEED.get(str(level), 0)
+
+
+# 统计挚爱（好感>=TRUE_LOVE_FAVOR）女友数量
+def count_true_love(gid, uid):
+    duel = DuelCounter()
+    num = 0
+    for cid in duel._get_cards(gid, uid):
+        if (duel._get_favor(gid, uid, cid) or 0) >= TRUE_LOVE_FAVOR:
+            num += 1
+    return num
+
+
+# 单次招募花费：随爵位与已有女友数递增
+def get_recruit_cost(level, girl_count):
+    base = RECRUIT_BASE_COST.get(level, 600)
+    step = RECRUIT_COST_STEP.get(level, 20)
+    return base + step * girl_count
+
+
+# 招募失败率：爵位越高越稳
+def get_recruit_fail_rate(level):
+    return RECRUIT_FAIL_RATE.get(level, 0.12)
+
+
+# 礼物售价（公主之心10不售卖，兜底按300算）
+def get_gift_price(giftid):
+    return GIFT_PRICE.get(giftid, 300)
 
 # 判断当前女友数是否大于于爵位上限
 def girl_outlimit(gid,uid):

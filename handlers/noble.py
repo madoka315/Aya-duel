@@ -9,13 +9,13 @@ import os
 import random
 from .. import chara
 from .. import sv
-from ..core.constants import Addgirlfail, Addgirlsuccess, BREAK_UP_SWITCH, FORWARD_QQ, FULLCARD_PATH, GACHA_COST, GIFT_DICT, Login100, Login200, Login300, Login600, NEED_favor, SHANGXIAN_NUM, WAREHOUSE_NUM
+from ..core.constants import Addgirlfail, Addgirlsuccess, BREAK_UP_SWITCH, FORWARD_QQ, FULLCARD_PATH, GIFT_DICT, LEVEL_MAX, Login100, Login200, Login300, Login600, NEED_favor, RECRUIT_DAILY_LIMIT, RECRUIT_PITY, SHANGXIAN_NUM, TRUE_LOVE_FAVOR, WAREHOUSE_NUM
 from ..core.db.ce import CECounter
 from ..core.db.duel import DuelCounter
 from ..core.db.score import ScoreCounter2
 from ..core.dlc import dlc_switch, dlcdict, dlcdict2
-from ..core.rules import concat_pic, get_girlnum_total, get_newgirl_list, get_noblename, get_noblescore, get_user_card
-from ..core.state import daily_sign_limiter, duel_judger
+from ..core.rules import concat_pic, count_true_love, get_favor_need, get_girlnum_total, get_newgirl_list, get_noblename, get_noblescore, get_prestige_need, get_recruit_cost, get_recruit_fail_rate, get_user_card
+from ..core.state import add_recruit_fail_count, clear_recruit_fail_count, daily_recruit_limiter, daily_sign_limiter, duel_judger, get_recruit_fail_count
 
 
 
@@ -88,9 +88,9 @@ async def noblelogin(bot, ev: CQEvent):
     score1 = Bonus[num][0]
     text1 = random.choice(Bonus[num][1])
     
-   #根据爵位的每日固定收入
+   #根据爵位的每日固定收入（皇帝以上封顶，防止新等级放大通胀）
     level = duel._get_level(gid, uid)
-    score2 = 50*level
+    score2 = 50*min(level,7)
     scoresum = score1+score2
     score_counter._add_score(gid, uid, scoresum)
     noblename = get_noblename(level)
@@ -341,9 +341,15 @@ async def girl_recruit(bot, ev: CQEvent):
             msg = '您的女友已经满了哦，快点发送[升级贵族]进行升级吧。'
             await bot.send(ev, msg, at_sender=True)
             return
+        guid = gid, uid
+        if not daily_recruit_limiter.check(guid):
+            msg = f'今天已经参加过{RECRUIT_DAILY_LIMIT}次贵族舞会了哦，明天再来吧。'
+            await bot.send(ev, msg, at_sender=True)
+            return
+        cost = get_recruit_cost(level, cidnum)
         score = score_counter._get_score(gid, uid)
-        if score < GACHA_COST:
-            msg = f'您的金币不足{GACHA_COST}哦。'
+        if score < cost:
+            msg = f'您的金币不足{cost}哦。'
             await bot.send(ev, msg, at_sender=True)
             return
         newgirllist = get_newgirl_list(gid)
@@ -353,7 +359,8 @@ async def girl_recruit(bot, ev: CQEvent):
                 await bot.send(ev, '这个群已经没有可以约到的新女友了哦。', at_sender=True)
                 return        
             else : 
-                score_counter._reduce_score(gid, uid, GACHA_COST)
+                daily_recruit_limiter.increase(guid)
+                score_counter._reduce_score(gid, uid, cost)
                 cid = 9999
                 c = chara.fromid(1059)
                 duel._add_card(gid, uid, cid)
@@ -361,16 +368,19 @@ async def girl_recruit(bot, ev: CQEvent):
                 await bot.send(ev, msg, at_sender=True)
                 return
 
-        score_counter._reduce_score(gid, uid, GACHA_COST)
+        daily_recruit_limiter.increase(guid)
+        score_counter._reduce_score(gid, uid, cost)
 
-       # 招募女友失败
-        if random.random() < 0.2:
+       # 招募女友失败：连续失败RECRUIT_PITY-1次后下一次必成
+        if get_recruit_fail_count(gid, uid) < RECRUIT_PITY - 1 and random.random() < get_recruit_fail_rate(level):
+            add_recruit_fail_count(gid, uid)
             losetext = random.choice(Addgirlfail)
-            msg = f'\n{losetext}\n您花费了{GACHA_COST}金币，但是没有约到新的女友。'
+            msg = f'\n{losetext}\n您花费了{cost}金币，但是没有约到新的女友。'
             await bot.send(ev, msg, at_sender=True)
             return
 
        # 招募女友成功
+        clear_recruit_fail_count(gid, uid)
         cid = random.choice(newgirllist)
         duel._add_card(gid, uid, cid)
         c = chara.fromid(cid)
@@ -385,7 +395,7 @@ async def girl_recruit(bot, ev: CQEvent):
             mes = f"[CQ:image,file={base64_str}]"
 
         
-        msg = f'\n{wintext}\n招募女友成功！\n您花费了{GACHA_COST}金币\n新招募的女友为：{c.name}{mes}'
+        msg = f'\n{wintext}\n招募女友成功！\n您花费了{cost}金币\n新招募的女友为：{c.name}{mes}'
 
         await bot.send(ev, msg, at_sender=True)
 
@@ -417,8 +427,8 @@ async def noble_upgrade(bot, ev: CQEvent):
         await bot.send(ev, msg, at_sender=True)
         return
 
-    if level == 7:
-        msg = f'您是本群的皇帝， 已经无法提升等级了。'
+    if level >= LEVEL_MAX:
+        msg = f'您已经是本群的{get_noblename(LEVEL_MAX)}， 已经无法提升等级了。'
         await bot.send(ev, msg, at_sender=True)
         return
 
@@ -429,17 +439,40 @@ async def noble_upgrade(bot, ev: CQEvent):
         return
     needscore = get_noblescore(level + 1)
     futurename = get_noblename(level + 1)
+    needfavor = get_favor_need(level + 1)
+    needprestige = get_prestige_need(level + 1)
 
+    if needfavor:
+        true_love = count_true_love(gid, uid)
+        if true_love < needfavor:
+            msg = f'升级到{futurename}需要{needfavor}名挚爱女友(好感>={TRUE_LOVE_FAVOR})，您现在有{true_love}名。'
+            await bot.send(ev, msg, at_sender=True)
+            return
+    if needprestige:
+        prestige = score_counter._get_prestige(gid, uid)
+        if prestige is None:
+            msg = f'升级到{futurename}需要{needprestige}声望，请先发送[开启声望系统]。'
+            await bot.send(ev, msg, at_sender=True)
+            return
+        if prestige < needprestige:
+            msg = f'您的声望不足哦。\n升级到{futurename}需要{needprestige}声望，您现在有{prestige}。'
+            await bot.send(ev, msg, at_sender=True)
+            return
     if score < needscore:
         msg = f'您的金币不足哦。\n升级到{futurename}需要{needscore}金币'
         await bot.send(ev, msg, at_sender=True)
         return
     score_counter._reduce_score(gid, uid, needscore)
+    if needprestige:
+        score_counter._reduce_prestige(gid, uid, needprestige)
     duel._add_level(gid, uid)
     newlevel = duel._get_level(gid, uid)
     newnoblename = get_noblename(newlevel)
     newgirlnum = get_girlnum_total(gid, uid)
-    msg = f'花费了{needscore}金币\n您成功由{noblename}升到了{newnoblename}\n可以拥有{newgirlnum}名女友了哦。'
+    msg = f'花费了{needscore}金币'
+    if needprestige:
+        msg += f'和{needprestige}声望'
+    msg += f'\n您成功由{noblename}升到了{newnoblename}\n可以拥有{newgirlnum}名女友了哦。'
     await bot.send(ev, msg, at_sender=True)
 
 #购买女友上限（移植自上游0.7）
@@ -607,8 +640,8 @@ async def marry_queen(bot, ev: CQEvent):
     prestige = score_counter._get_prestige(gid,uid)
     if prestige == None:
         await bot.finish(ev, '您还未开启声望系统哦。', at_sender=True)    
-    if level != 7:
-        await bot.finish(ev, '只有皇帝才可以举办皇室婚礼哦。', at_sender=True)  
+    if level < 7:
+        await bot.finish(ev, '只有皇帝以上才可以举办皇室婚礼哦。', at_sender=True)  
     if duel._search_queen(gid,uid)!=0:
         await bot.finish(ev, '皇帝只可以举办一次皇室婚礼哦。', at_sender=True)
     if not args:
