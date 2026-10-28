@@ -282,8 +282,8 @@ async def duel_start(bot, ev: CQEvent):
             msg = f'[CQ:at,qq={loser}]\n您的女友数为{cidnum_loser}名\n小于爵位需要的女友数{girlnum_loser}名\n您的爵位下降到了{new_noblename}\n获得掉段补偿金{reward}'
             await bot.send(ev, msg)
     duel._add_Lose(gid,loser)
-   #结算下注金币，判定是否为超时局。
-    if is_overtime == 1 and n != weapon_num:
+   #结算下注金币，判定是否为超时局（任何一发超时都按认输处理并退注，含最后一发）
+    if is_overtime == 1:
         msg = '本局为超时局，记为认输，不进行金币结算，支持的金币全部返还。'
         refunded = refund_allin_support(gid)
         if refunded:
