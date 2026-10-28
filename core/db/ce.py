@@ -1,23 +1,16 @@
-import asyncio
-import base64
+# -*- coding: utf-8 -*-
+"""贵族决斗：战斗、副本、会战、抽卡数据表"""
+from datetime import datetime
 import os
-import random
 import sqlite3
-import math
-from datetime import datetime, timedelta
-from io import BytesIO
-from PIL import Image
-from hoshino import Service, priv
-from hoshino.typing import CQEvent
-from hoshino.util import DailyNumberLimiter
-import copy
-import json
-DUEL_DB_PATH = os.path.expanduser('~/.hoshino/pcr_duel.db')
-SCORE_DB_PATH = os.path.expanduser('~/.hoshino/pcr_running_counter.db')
-DB_PATH = os.path.expanduser("~/.hoshino/pcr_duel.db")
-class CECounter:
+from ..constants import DUEL_DB_PATH
+from .base import Singleton, get_connection
+
+
+class CECounter(Singleton):
     def __init__(self):
-        os.makedirs(os.path.dirname(DUEL_DB_PATH), exist_ok=True)
+        if self._ready:
+            return
         self._create_exptable()
         self._create_guajitable()
         self._create_equipment()
@@ -35,9 +28,10 @@ class CECounter:
         self._create_expnumtable()
         self._create_equipgecha()
         self._create_xingchen()
-    
+        self._ready = True
+
     def _connect(self):
-        return sqlite3.connect(DUEL_DB_PATH)
+        return get_connection(DUEL_DB_PATH)
         
     def _create_exptable(self):
         try:
@@ -48,7 +42,7 @@ class CECounter:
                            LEVEL           INT    NOT NULL,
                            EXP           INT    NOT NULL,
                            PRIMARY KEY(GID, CID));''')
-        except:
+        except Exception:
             raise Exception('创建角色等级经验表发生错误')
             
     def _create_guajitable(self):
@@ -58,7 +52,7 @@ class CECounter:
                            UID           INT    NOT NULL,
                            CID           INT    NOT NULL,
                            PRIMARY KEY(GID, UID));''')
-        except:
+        except Exception:
             raise Exception('创建角色挂机表发生错误')
             
     def _create_equipment(self):
@@ -69,7 +63,7 @@ class CECounter:
                            EID           INT    NOT NULL,
                            NUM           INT    NOT NULL,
                            PRIMARY KEY(GID, UID, EID));''')
-        except:
+        except Exception:
             raise Exception('创建装备表发生错误')
             
     def _create_dressequip(self):
@@ -81,7 +75,7 @@ class CECounter:
                            TYPEID           INT    NOT NULL,
                            EID           INT    NOT NULL,
                            PRIMARY KEY(GID, UID, CID, TYPEID));''')
-        except:
+        except Exception:
             raise Exception('创建装备穿戴表发生错误')
             
     def _create_dun_score(self):
@@ -91,7 +85,7 @@ class CECounter:
                            UID           INT    NOT NULL,
                            NUM           INT    NOT NULL,
                            PRIMARY KEY(GID, UID));''')
-        except:
+        except Exception:
             raise Exception('创建副本金币表发生错误')
           
     #重置角色等级
@@ -157,7 +151,7 @@ class CECounter:
         try:
             r = self._connect().execute("SELECT NUM FROM EQUIPMENT WHERE GID=? AND UID=? AND EID=?", (gid, uid, eid)).fetchone()
             return 0 if r is None else r[0]
-        except:
+        except Exception:
             raise Exception('查找装备信息发生错误')
             
     #装备表数量更新
@@ -193,7 +187,7 @@ class CECounter:
         try:
             r = self._connect().execute("SELECT EID FROM DRESSEQUIP WHERE GID=? AND UID=? AND CID=? AND TYPEID=? AND EID>0", (gid, uid, cid, typeid)).fetchone()
             return 0 if r is None else r[0]
-        except:
+        except Exception:
             raise Exception('查找穿戴信息发生错误')
     
     #角色装备装备
@@ -209,7 +203,7 @@ class CECounter:
         try:
             r = self._connect().execute("SELECT NUM FROM DUNSCORE WHERE GID=? AND UID=?", (gid, uid)).fetchone()
             return 0 if r is None else r[0]
-        except:
+        except Exception:
             raise Exception('查找副本币信息发生错误')
     
     #副本币表数量更新
@@ -234,7 +228,7 @@ class CECounter:
                            CID             INT    NOT NULL,
                            RANK        INT    NOT NULL,
                            PRIMARY KEY(GID, UID, CID));''')
-        except:
+        except Exception:
             raise Exception('创建rank表发生错误')
     def _add_rank(self, gid, uid, cid):
         with self._connect() as conn:
@@ -254,7 +248,7 @@ class CECounter:
         try:
             r = self._connect().execute("SELECT RANK FROM RANKTABLE WHERE GID=? AND UID=? AND CID=?",(gid, uid, cid)).fetchone()
             return 0 if r is None else r[0]
-        except:
+        except Exception:
             raise Exception('查找rank发生错误')
 
     def _get_cards_byrank(self, gid, num):
@@ -273,7 +267,7 @@ class CECounter:
                            BOSSID             INT    NOT NULL,
                            HP        INT    NOT NULL,
                            PRIMARY KEY(GID));''')
-        except:
+        except Exception:
             raise Exception('创建boss状态表发生错误')
             
     #会战部分
@@ -297,7 +291,7 @@ class CECounter:
                            NUM        INT    NOT NULL,
                            TYPE        INT    NOT NULL,
                            PRIMARY KEY(GID, UID, ZHOUMU, BOSSID, NUM, TYPE));''')
-        except:
+        except Exception:
             raise Exception('创建伤害表发生错误')
 
     def _create_bossfight_add(self):
@@ -320,7 +314,7 @@ class CECounter:
                            HP        INT    NOT NULL,
                            TYPE        INT    NOT NULL,
                            PRIMARY KEY(GID, UID, CID, TYPE));''')
-        except:
+        except Exception:
             raise Exception('创建女友出刀表发生错误')
     
     #重置boss状态
@@ -435,7 +429,7 @@ class CECounter:
                            CID             INT    NOT NULL,
                            NAME        VARCHAR(20)    NOT NULL,
                            PRIMARY KEY(GID, UID, CID, NAME));''')
-        except:
+        except Exception:
             raise Exception('创建队伍表发生错误')
             
     def _add_team(self, gid, uid, cid, name):
@@ -478,7 +472,7 @@ class CECounter:
                            CID             INT    NOT NULL,
                            XLTIME        INT    NOT NULL,
                            PRIMARY KEY(GID, UID, CID));''')
-        except:
+        except Exception:
             raise Exception('创建挂机修炼表发生错误')
     
     def _get_xiulian(self, gid, uid):
@@ -509,7 +503,7 @@ class CECounter:
                            UID             INT    NOT NULL,
                            NUM        INT    NOT NULL,
                            PRIMARY KEY(GID, UID));''')
-        except:
+        except Exception:
             raise Exception('创建经验池表发生错误')
     
     def _get_exp_chizi(self, gid, uid):
@@ -541,7 +535,7 @@ class CECounter:
                            XNUM        INT    NOT NULL,
                            DNUM        INT    NOT NULL,
                            PRIMARY KEY(GID, UID));''')
-        except:
+        except Exception:
             raise Exception('创建经验池表发生错误')
     
     def _get_gecha_num(self, gid, uid):
@@ -567,7 +561,7 @@ class CECounter:
                            UID             INT    NOT NULL,
                            NUM        INT    NOT NULL,
                            PRIMARY KEY(GID, UID));''')
-        except:
+        except Exception:
             raise Exception('创建抽卡星尘表发生错误')
     
     def _get_xingchen_num(self, gid, uid):
@@ -589,7 +583,3 @@ class CECounter:
                 (gid, uid, now_num),
             )
             return now_num
-    
-    
-    
-    
