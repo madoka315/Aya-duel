@@ -111,7 +111,8 @@ PATROL_STAGE_CE = {
     7: 2600, 8: 3200, 9: 4000, 10: 5000, 11: 6000, 12: 7000
 }
 PATROL_WIN_MIN = 30#胜率下限（百分比）
-PATROL_WIN_MAX = 90#胜率上限（百分比）
+PATROL_WIN_MAX = 75#胜率上限（百分比）
+PATROL_WIN_K = 25#战力/关卡每高1倍增加的胜率（压低战力影响，留随机）
 PATROL_GOLD_BASE = 30#基础金币
 PATROL_GOLD_PER_LEVEL = 10#每爵位额外金币
 PATROL_GOLD_MAX = 150#金币上限
@@ -133,15 +134,17 @@ WEEKLY_EXP = 200#出战女友经验
 WEEKLY_KILL_GOLD = 300#击杀奖励金币
 WEEKLY_KILL_FAVOR = 10#击杀奖励好感
 
-#赛马场：女友参赛，押中第一名固定4.5倍，系统抽水25%
+#赛马场：女友参赛，无NPC，2人及以上开跑，押中第一名按场次人数定倍率（恒抽水25%）
 RACE_DAILY_LIMIT = 3
-RACE_MAX_HORSE = 6#满几匹开跑
-RACE_SIGNUP_TIME = 45#报名/下注时长（秒）
-RACE_SEGMENTS = 3#播报段数
-RACE_SEG_TIME = 3#每段间隔（秒）
+RACE_MIN_HORSE = 2#最少几匹开跑
+RACE_MAX_HORSE = 6#满几匹提前开跑
+RACE_SIGNUP_TIME = 60#报名/下注时长（秒）
+RACE_SEGMENTS = 5#播报段数
+RACE_SEG_TIME = 4#每段间隔（秒）
 RACE_BET_MIN = 10#单注下限
 RACE_BET_MAX = 1000#单注上限
-RACE_PAYOUT = 4.5#押中第一名返还倍数（含本金）
+RACE_PAYOUT_EV = 0.75#返还期望：倍率 = 场次人数 × 该值 - 即押中第一名拿 N×0.75 倍
+RACE_CE_WEIGHT = 0.2#战力在速度里的占比（0.9~1.1），其余全靠随机
 RACE_WIN_FAVOR = 20#自家女友夺冠好感
 
 #决斗胜利时按代表女友战力追加金币

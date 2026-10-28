@@ -5,7 +5,7 @@ import math
 import random
 from .. import chara
 from .. import sv
-from ..core.constants import PATROL_DAILY_LIMIT, PATROL_EXP, PATROL_FAIL_RATE, PATROL_FAVOR, PATROL_GOLD_BASE, PATROL_GOLD_MAX, PATROL_GOLD_PER_LEVEL, PATROL_WIN_MAX, PATROL_WIN_MIN
+from ..core.constants import PATROL_DAILY_LIMIT, PATROL_EXP, PATROL_FAIL_RATE, PATROL_FAVOR, PATROL_GOLD_BASE, PATROL_GOLD_MAX, PATROL_GOLD_PER_LEVEL, PATROL_WIN_K, PATROL_WIN_MAX, PATROL_WIN_MIN
 from ..core.db.ce import CECounter
 from ..core.db.duel import DuelCounter
 from ..core.db.score import ScoreCounter2
@@ -50,7 +50,7 @@ async def patrol(bot, ev: CQEvent):
     c = chara.fromid(cid)
     card_ce = get_card_ce(gid, uid, cid)
     stage_ce = get_patrol_stage(level)
-    win_rate = min(PATROL_WIN_MAX, max(PATROL_WIN_MIN, card_ce / stage_ce * 50))
+    win_rate = min(PATROL_WIN_MAX, max(PATROL_WIN_MIN, PATROL_WIN_MIN + card_ce / stage_ce * PATROL_WIN_K))
 
     is_win = random.uniform(1, 100) <= win_rate
     ratio = 1 if is_win else PATROL_FAIL_RATE
