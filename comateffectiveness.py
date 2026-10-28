@@ -999,7 +999,7 @@ async def start_bushi(bot, ev: CQEvent):
                     nextboss = 1
                     nextzhoumu = bossinfo['zhoumu'] + 1
                 nextbossinfo = get_nextbossinfo(nextzhoumu,nextboss,shijieflag)
-                boss_msg = f"击杀了boss\n下一个boss为：第{nextzhoumu}周目{nextboss}号boss({nextbossinfop['name']})\n{nextbossinfo['icon']}"
+                boss_msg = f"击杀了boss\n下一个boss为：第{nextzhoumu}周目{nextboss}号boss({nextbossinfo['name']})\n{nextbossinfo['icon']}"
             else:
                 now_hp = bossinfo['hp'] - shanghai
                 nexthp = now_hp
@@ -1809,8 +1809,7 @@ async def buy_duncoin(bot, ev: CQEvent):
     CE = CECounter()
     duel = DuelCounter()
     score_counter = ScoreCounter2()
-    random.seed(datetime.now().day + gid)
-    ritsu = random.choice([10,20,40,60,60,80,80,80,100,100,100])
+    ritsu = random.Random(datetime.now().day + gid).choice([10,20,40,60,60,80,80,80,100,100,100])
     match = ev['match']
     if not (match.group(1)):
         await bot.finish(ev, f'请输入要兑换的金币数量哦\n本群今天的兑换比例为：{ritsu}:1')

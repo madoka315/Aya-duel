@@ -448,12 +448,12 @@ class CECounter:
     def _delete_team(self, gid, uid, name):
         with self._connect() as conn:
             conn.execute(
-                f"DELETE FROM TEAMTABLE WHERE GID={gid} AND UID={uid} AND NAME = '{name}'").fetchall()
+                "DELETE FROM TEAMTABLE WHERE GID=? AND UID=? AND NAME = ?", (gid, uid, name)).fetchall()
     
     def _get_teamlist(self, gid, uid, name):
         with self._connect() as conn:
             r = conn.execute(
-                f"SELECT CID FROM TEAMTABLE WHERE GID={gid} AND UID={uid} AND NAME = '{name}'").fetchall()
+                "SELECT CID FROM TEAMTABLE WHERE GID=? AND UID=? AND NAME = ?", (gid, uid, name)).fetchall()
             return r if r else 0
     
     def _get_teamnum(self, gid, uid):

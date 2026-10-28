@@ -708,6 +708,20 @@ class ScoreCounter2:
             )
 
 
+def refund_allin_support(gid):
+    """退还本群尚未结算的梭哈托管金币，返回[(uid, 退还金币)]"""
+    support = duel_judger.get_support(gid)
+    if not support:
+        return []
+    score_counter = ScoreCounter2()
+    refunded = []
+    for uid in support:
+        support_id, support_score, allin = support[uid]
+        if allin:
+            score_counter._add_score(gid, uid, support_score)
+            refunded.append((uid, support_score))
+    return refunded
+
 
 
 
@@ -1250,8 +1264,8 @@ class DuelJudger:
     def get_support(self, gid):
         return self.support[gid] if self.support.get(gid) is not None else 0
 
-    def add_support(self, gid, uid, id, score):
-        self.support[gid][uid] = [id, score]
+    def add_support(self, gid, uid, id, score, allin=False):
+        self.support[gid][uid] = [id, score, allin]
 
     def get_support_id(self, gid, uid):
         if self.support[gid].get(uid) is not None:
@@ -2521,19 +2535,20 @@ async def nobleduel(bot, ev: CQEvent):
     id2Win = duel._get_WLCWIN(gid,id2)
     id1Lose = duel._get_WLCLOSE(gid,id1)
     id2Lose = duel._get_WLCLOSE(gid,id2)
-    n = duel._get_weapon(gid)
-    if n == 6:
+   #开局快照弹匣量：中途改武器不影响本局的轮数判定与超时判定
+    weapon_num = duel._get_weapon(gid)
+    if weapon_num == 6:
         msg = '''目前本群启用的武器是俄罗斯左轮，弹匣量为6\n'''
-    elif n == 2:
+    elif weapon_num == 2:
         msg = '''目前本群启用的武器是贝雷塔687，弹匣量为2\n'''
-    elif n == 20:
+    elif weapon_num == 20:
         msg = '''目前本群启用的武器是Glock，弹匣量为20\n'''
-    elif n == 12:
+    elif weapon_num == 12:
         msg = '''目前本群启用的武器是战术型沙漠之鹰，弹匣量为12\n'''
-    elif n == 10:
+    elif weapon_num == 10:
         msg = '''目前本群启用的武器是巴雷特，弹匣量为10\n'''
     else:
-        msg = f'目前本群启用的是自定义武器，弹匣量为{n}\n'
+        msg = f'目前本群启用的是自定义武器，弹匣量为{weapon_num}\n'
     msg += f'''对方接受了决斗！    
 1号：[CQ:at,qq={id1}]
 爵位为：{noblename1}
@@ -2549,8 +2564,7 @@ async def nobleduel(bot, ev: CQEvent):
     duel_judger.turn_on_support(gid)
     await asyncio.sleep(DUEL_SUPPORT_TIME)
     duel_judger.turn_off_support(gid)
-    x = duel._get_weapon(gid)
-    deadnum = random.randint(1,x)
+    deadnum = random.randint(1,weapon_num)
     duel_judger.set_deadnum(gid, deadnum)
     duel_judger.init_turn(gid)
     duel_judger.turn_on_fire(gid)
@@ -2559,7 +2573,7 @@ async def nobleduel(bot, ev: CQEvent):
 
     await bot.send(ev, msg)
     n = 1
-    while (n <= duel._get_weapon(gid)):
+    while (n <= weapon_num):
         wait_n = 0
         while (wait_n < 30):
             if duel_judger.get_on_off_hasfired_status(gid):
@@ -2712,8 +2726,11 @@ async def nobleduel(bot, ev: CQEvent):
             await bot.send(ev, msg)
     duel._add_Lose(gid,loser)
    #结算下注金币，判定是否为超时局。
-    if is_overtime == 1 and n !=duel._get_weapon(gid):
+    if is_overtime == 1 and n != weapon_num:
         msg = '本局为超时局，记为认输，不进行金币结算，支持的金币全部返还。'
+        refunded = refund_allin_support(gid)
+        if refunded:
+            msg += '\n梭哈托管金币已退还:\n' + ''.join(f'[CQ:at,qq={uid}]+{score}金币\n' for uid, score in refunded)
         await bot.send(ev, msg)
         duel._add_ADMIT(gid,loser)
         duel_judger.set_support(ev.group_id)
@@ -2737,15 +2754,24 @@ async def nobleduel(bot, ev: CQEvent):
         for uid in support:
             support_id = support[uid][0]
             support_score = support[uid][1]
+            allin = support[uid][2]
             if support_id == winnum:
                 winuid.append(uid)
-               #这里是赢家获得的金币结算，可以自己修改倍率。
-                winscore = support_score*WIN_NUM 
+                if allin:
+                   #梭哈已托管扣款，胜利返还本金1.5倍（净赚0.5倍）
+                    winscore = int(support_score*1.5)
+                else:
+                   #这里是赢家获得的金币结算，可以自己修改倍率。
+                    winscore = support_score*WIN_NUM
                 score_counter._add_score(gid, uid, winscore)
                 supportmsg += f'[CQ:at,qq={uid}]+{winscore}金币\n'
             else:
-                score_counter._reduce_score(gid, uid, support_score)
-                supportmsg += f'[CQ:at,qq={uid}]-{support_score}金币\n'
+                if allin:
+                   #梭哈金币下注时已扣除，失败不再重复扣款
+                    supportmsg += f'[CQ:at,qq={uid}]-{support_score}金币\n'
+                else:
+                    score_counter._reduce_score(gid, uid, support_score)
+                    supportmsg += f'[CQ:at,qq={uid}]-{support_score}金币\n'
     await bot.send(ev, supportmsg)
     duel_judger.set_support(ev.group_id)
     duel_judger.turn_off(ev.group_id)
@@ -2863,9 +2889,10 @@ async def on_input_duel_score2(bot, ev: CQEvent):
                 await bot.send(ev, msg, at_sender=True)
                 return
             else:
-                input_score =  int(1.5*current_score)
-                duel_judger.add_support(gid, uid, select_id, input_score)
-                msg = f'梭哈{select_id}号{current_score}金币成功，胜利时，将获得相对于平常值1.5倍的金币！'
+               #下注即托管：立即扣除全部金币，胜利时返还本金的1.5倍
+                score_counter._reduce_score(gid, uid, current_score)
+                duel_judger.add_support(gid, uid, select_id, current_score, allin=True)
+                msg = f'梭哈{select_id}号{current_score}金币成功（金币已全部托管扣除），胜利时返还本金的1.5倍金币！'
                 await bot.send(ev, msg, at_sender=True)
     except Exception as e:
         await bot.send(ev, '错误:\n' + str(e))
@@ -2940,8 +2967,11 @@ async def init_duel(bot, ev: CQEvent):
     if not priv.check_priv(ev, priv.ADMIN):
         await bot.finish(ev, '只有群管理才能使用重置决斗哦。', at_sender=True)
     duel_judger.turn_off(ev.group_id)
+    refunded = refund_allin_support(ev.group_id)
     duel_judger.set_support(ev.group_id)
     msg = '已重置本群决斗状态！'
+    if refunded:
+        msg += '\n梭哈托管金币已退还:\n' + ''.join(f'[CQ:at,qq={uid}]+{score}金币\n' for uid, score in refunded)
     await bot.send(ev, msg, at_sender=True)
 
 
@@ -3940,64 +3970,43 @@ async def reset_CK(bot, ev: CQEvent):
             i += 1 
         await bot.finish(ev, f'已清空您的女友和贵族等级，金币等。', at_sender=True)
 
+def _gen_shop(gid, uid):
+    """按 群+人+小时+日+月 生成神秘商店，返回{编号: (礼物名, 价格)}"""
+    nows = datetime.now(pytz.timezone('Asia/Shanghai'))
+    seed = gid+uid+nows.hour+nows.day+nows.month
+    rng = random.Random(seed)
+    num1 = rng.randint(0,2)
+    num2 = rng.randint(3,5)
+    num3 = rng.randint(6,8)
+    num4 = rng.randint(9,10)
+    num5 = rng.randint(5,10)
+    id2gift = {giftid: giftname for giftname, giftid in GIFT_DICT.items()}
+    shop = {
+        1: (id2gift[num1], rng.randint(1,10)*200),
+        2: (id2gift[num2], rng.randint(2,10)*200),
+        3: (id2gift[num3], rng.randint(3,10)*200),
+    }
+    if num4 < 10:
+        shop[4] = (id2gift[num4], rng.randint(4,10)*200)
+    else:
+        shop[4] = (id2gift[num4], rng.randint(4,10)*400)
+   #5号位为限定的公主之心，仅在抽到10时上架
+    if num5 == 10:
+        shop[5] = (id2gift[10], 1000+rng.randint(5,10)*200)
+    return shop
+
 @sv.on_fullmatch(['神秘商店','今日商店'])
 async def buy_information(bot, ev: CQEvent):
     gid = ev.group_id
     uid = ev.user_id
-    duel = DuelCounter()
-    score_counter = ScoreCounter2()
     if duel_judger.get_on_off_status(ev.group_id):
         msg = '现在正在决斗中哦，请决斗后再来看看吧。'
         await bot.finish(ev, msg, at_sender=True)    
-    nows = datetime.now(pytz.timezone('Asia/Shanghai'))
-    month = nows.month
-    day = nows.day
-    hour = nows.hour
-    seed = gid+uid+hour+day+month
-    print(seed)
-    random.seed(seed)
-    num1 = random.randint(0,2)
-    num2 = random.randint(3,5)
-    num3 = random.randint(6,8)
-    num4 = random.randint(9,10)
-    num5 = random.randint(5,10)
+    shop = _gen_shop(gid, uid)
     msg = f'现在神秘商店在出售这些物品\n'
-    for gift in GIFT_DICT.keys():
-        random.seed(seed)
-        if GIFT_DICT[gift] == num1:
-            shop1 = gift
-            needgold = random.randint(1,10)*200
-            msg += f'1：{shop1} {needgold}金币\n'
-            num1 = -1
-            continue
-        if GIFT_DICT[gift] == num2:
-            shop2 = gift
-            needgold = random.randint(2,10)*200
-            msg += f'2：{shop2} {needgold}金币\n'
-            num2 = -1
-            continue
-        if GIFT_DICT[gift] == num3:
-            shop3 = gift
-            needgold = random.randint(3,10)*200
-            msg += f'3：{shop3} {needgold}金币\n'
-            num3 = -1
-            continue
-        if GIFT_DICT[gift] == num4:
-            shop4 = gift
-            if num4 <10:
-                needgold = random.randint(4,10)*200
-                msg += f'4：{shop4} {needgold}金币\n'
-            else:
-                needgold = random.randint(4,10)*400
-                msg += f'4：{shop4} {needgold}金币\n'
-            num4 = -1
-            continue
-        if GIFT_DICT[gift] == num5:
-            shop5 = gift
-            needgold = 1000+random.randint(5,10)*200
-            msg += f'5：{shop5} {needgold}金币\n'
-            num5 = -1
-            continue
+    for shopid in sorted(shop):
+        shopname, needgold = shop[shopid]
+        msg += f'{shopid}：{shopname} {needgold}金币\n'
     msg += f'发送购买物品+物品编号来购买，神秘商店每小时刷新！每人每天限购{SHOP_LIMIT}次哦\n注意：每个人的商店内容不同哦！\n'
     await bot.send(ev, msg, at_sender=True)  
      
@@ -4009,101 +4018,25 @@ async def Shop(bot, ev: CQEvent):
     guid = gid,uid
     duel = DuelCounter()
     score_counter = ScoreCounter2()
-    score = score_counter._get_score(gid, uid)
     if not daily_SHOP_limiter.check(guid):
         await bot.finish(ev, '您今日购买神秘商店商品的次数已达上限喔，明天再来吧！', at_sender=True)
-    nows = datetime.now(pytz.timezone('Asia/Shanghai'))
-    month = nows.month
-    day = nows.day
-    hour = nows.hour
-    seed = gid+uid+hour+day+month
-    print(seed)
-    random.seed(seed)
-    num1 = random.randint(0,2)
-    num2 = random.randint(3,5)
-    num3 = random.randint(6,8)
-    num4 = random.randint(9,10)
-    num5 = random.randint(5,10)
-    if not args:
-        await bot.finish(ev, '请输入 购买物品+物品编号 中间用空格隔开。', at_sender=True)
     if len(args)!=1:
         await bot.finish(ev, '请输入 购买物品+物品编号 中间用空格隔开。', at_sender=True)
-    shopid = int(args[0])
-    if shopid > 5 or shopid <=0:
+    try:
+        shopid = int(args[0])
+    except ValueError:
         await bot.finish(ev, '请输入正确的物品编号。', at_sender=True)
-    if shopid == 5 and num5 < 10:
-        await bot.finish(ev, '请输入正确的物品编号。', at_sender=True)    
-    for gift in GIFT_DICT.keys():
-        if GIFT_DICT[gift] == num1:
-            shop1 = gift
-            num1 = -1
-            continue
-        if GIFT_DICT[gift] == num2:
-            shop2 = gift
-            num2 = -1
-            continue
-        if GIFT_DICT[gift] == num3:
-            shop3 = gift
-            num3 = -1
-            continue
-        if GIFT_DICT[gift] == num4:
-            shop4 = gift
-            num4 = -1
-            continue
-        if GIFT_DICT[gift] == num5:
-            shop5 = gift
-            num5 = -1
-            continue
-    random.seed(seed)
-    if shopid == 1:
-        needgold = random.randint(1,10)*200
-        if score < needgold:
-            await bot.finish(ev, f'购买需要{needgold}金币，您的金币不足哦。', at_sender=True)
-        gfid = GIFT_DICT[shop1]
-        score_counter._reduce_score(gid,uid,needgold)
-        duel._add_gift(gid,uid,gfid)
-        daily_SHOP_limiter.increase(guid)
-        await bot.finish(ev, f'成功购买了{shop1},花费了{needgold}金币。', at_sender=True) 
-    if shopid == 2:
-        needgold = random.randint(2,10)*200
-        if score < needgold:
-            await bot.finish(ev, f'购买需要{needgold}金币，您的金币不足哦。', at_sender=True) 
-        gfid = GIFT_DICT[shop2]
-        duel._add_gift(gid,uid,gfid)
-        daily_SHOP_limiter.increase(guid)
-        score_counter._reduce_score(gid,uid,needgold)
-        await bot.finish(ev, f'成功购买了{shop2},花费了{needgold}金币。', at_sender=True) 
-    if shopid == 3:
-        needgold = random.randint(3,10)*200
-        if score < needgold:
-            await bot.finish(ev, f'购买需要{needgold}金币，您的金币不足哦。', at_sender=True) 
-        gfid = GIFT_DICT[shop3]
-        duel._add_gift(gid,uid,gfid)
-        daily_SHOP_limiter.increase(guid)
-        score_counter._reduce_score(gid,uid,needgold)
-        await bot.finish(ev, f'成功购买了{shop3},花费了{needgold}金币。', at_sender=True) 
-    if shopid == 4:
-        gfid = GIFT_DICT[shop4]
-        if gfid < 10:
-            needgold = random.randint(4,10)*200
-        else:
-            needgold = random.randint(4,10)*400
-        if score < needgold:
-            await bot.finish(ev, f'购买需要{needgold}金币，您的金币不足哦。', at_sender=True) 
-         
-        duel._add_gift(gid,uid,gfid)
-        daily_SHOP_limiter.increase(guid)
-        score_counter._reduce_score(gid,uid,needgold)
-        await bot.finish(ev, f'成功购买了{shop4},花费了{needgold}金币。', at_sender=True) 
-    if shopid == 5:
-        needgold = 1000+random.randint(5,10)*200
-        if score < needgold:
-            await bot.finish(ev, f'购买需要{needgold}金币，您的金币不足哦。', at_sender=True) 
-        gfid = GIFT_DICT[shop5]
-        duel._add_gift(gid,uid,gfid)
-        daily_SHOP_limiter.increase(guid)
-        score_counter._reduce_score(gid,uid,needgold)
-        await bot.finish(ev, f'成功购买了{shop5},花费了{needgold}金币。', at_sender=True)    
+    shop = _gen_shop(gid, uid)
+    if shopid not in shop:
+        await bot.finish(ev, '请输入正确的物品编号。', at_sender=True)
+    shopname, needgold = shop[shopid]
+    score = score_counter._get_score(gid, uid)
+    if score < needgold:
+        await bot.finish(ev, f'购买需要{needgold}金币，您的金币不足哦。', at_sender=True)
+    duel._add_gift(gid,uid,GIFT_DICT[shopname])
+    daily_SHOP_limiter.increase(guid)
+    score_counter._reduce_score(gid,uid,needgold)
+    await bot.finish(ev, f'成功购买了{shopname},花费了{needgold}金币。', at_sender=True)    
  
 @sv.on_prefix(['批量送礼'])
 async def give_gift(bot, ev: CQEvent):

@@ -37,12 +37,12 @@ async def my_fashion_info(bot, ev: CQEvent):
     jishu=0
     up_name=''
     owner = duel._get_card_owner(gid, cid)
+    if owner == 0:
+        await bot.send(ev, f'{c.name}现在还是单身哦，快去约到她吧。{nvmes}', at_sender=True)
+        return
     if uid!=owner:
         msg = f'{c.name}现在正在\n[CQ:at,qq={owner}]的身边哦，您无法查询哦。'
         await bot.send(ev, msg)
-        return
-    if owner == 0:
-        await bot.send(ev, f'{c.name}现在还是单身哦，快去约到她吧。{nvmes}', at_sender=True)
         return
     if uid==owner:
         queen_msg=''
